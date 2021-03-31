@@ -1,0 +1,13 @@
+README.md
+setup.cfg
+setup.py
+src/nd2tools/__init__.py
+src/nd2tools/__main__.py
+src/nd2tools.egg-info/PKG-INFO
+src/nd2tools.egg-info/SOURCES.txt
+src/nd2tools.egg-info/dependency_links.txt
+src/nd2tools.egg-info/entry_points.txt
+src/nd2tools.egg-info/requires.txt
+src/nd2tools.egg-info/top_level.txt
+src/nd2tools/cli/__init__.py
+src/nd2tools/cli/scalebar.py

@@ -1,0 +1,3 @@
+[console_scripts]
+nd2tools = nd2tools.__main__:main
+
