@@ -1,6 +1,6 @@
 [![CI](https://github.com/FrickTobias/ND2-tools/workflows/CI/badge.svg?branch=main)](https://github.com/AfshinLab/DBS-OCP/actions?query=branch%3Amain)
 
-# DBS-OCP
+# ND2-tools
 
 ND2 image handling
 
