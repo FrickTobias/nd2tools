@@ -5,13 +5,13 @@
 ND2 image handling
 
 - [Install](#install)
-- [Running analysis](#running-analysis)
+- [Recipies](#Recipies)
 
 ## Install
 
 1. Clone the ND2-tools github
     ```
-    git clone https://github.com/FrickTobias/nd2tools 
+    git clone https://github.com/FrickTobias/nd2tools.git 
     ```
 
 2. Install the base environment for `environment.yml` file using conda:

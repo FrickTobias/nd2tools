@@ -10,12 +10,10 @@ from argparse import ArgumentParser
 
 from matplotlib_scalebar.scalebar import ScaleBar
 
-
 logger = logging.getLogger(__name__)
 
 
 def main(args):
-
     # Get screen pixel density
     dpi = get_screen_dpi()
 
@@ -39,7 +37,7 @@ def main(args):
         scalebar_width = 0.015
         scalebar_length = 0.3
         font = {
-            "size":"40"
+            "size": "40"
         }
     else:
         scalebar_width = 0.01
@@ -67,24 +65,23 @@ def get_screen_dpi():
 
 
 def add_arguments(parser):
-
     parser.add_argument(
         "image", type=pathlib.Path,
         help="Input image to add scale bar to."
     )
     parser.add_argument(
         "pixelsize", type=float,
-                        help="Pixel size in sensor in um."
+        help="Pixel size in sensor in um."
     )
     parser.add_argument(
         "magnification", type=float,
-                        help="Magnification from objective."
+        help="Magnification from objective."
     )
     parser.add_argument(
         "--big", "-b", action="store_true",
-                        help="Creates larger scale bar."
+        help="Creates larger scale bar."
     )
     parser.add_argument(
         "output",
-                        help="Output file name. Will save in jpeg."
+        help="Output file name. Will save in jpeg."
     )
