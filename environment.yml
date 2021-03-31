@@ -12,3 +12,6 @@ dependencies:
   - conda-forge::importlib_resources
   - imageio
   - matplotlib
+  - pip
+  - pip:
+      - matplotlib-scalebar

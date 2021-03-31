@@ -1,8 +1,17 @@
+LICENSE
 README.md
+environment.yml
+pyproject.toml
 setup.cfg
 setup.py
+.idea/.gitignore
+.idea/vcs.xml
+.idea/inspectionProfiles/profiles_settings.xml
+src/__init__.py
 src/nd2tools/__init__.py
 src/nd2tools/__main__.py
+src/nd2tools/_version.py
+src/nd2tools/utils.py
 src/nd2tools.egg-info/PKG-INFO
 src/nd2tools.egg-info/SOURCES.txt
 src/nd2tools.egg-info/dependency_links.txt
@@ -11,3 +20,5 @@ src/nd2tools.egg-info/requires.txt
 src/nd2tools.egg-info/top_level.txt
 src/nd2tools/cli/__init__.py
 src/nd2tools/cli/scalebar.py
+tests/test_cli.py
+tests/testdata/img.bmp
