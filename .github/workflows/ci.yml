@@ -4,6 +4,12 @@ on:
   pull_request:
   schedule:
     - cron: 0 7 * * 1,3,5
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'doc/**'
+      - 'README.md'
 
 jobs:
   run:
