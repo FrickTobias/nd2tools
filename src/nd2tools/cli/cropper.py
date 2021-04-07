@@ -24,7 +24,7 @@ def main(args):
             plt.savefig(args.output, format="jpeg", bbox_inches='tight', pad_inches=0)
 
 
-#def nd2_generator(img_path):
+# def nd2_generator(img_path):
 #    with ND2Reader(img_path) as images:
 #        yield images
 
