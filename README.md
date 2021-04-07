@@ -1,4 +1,4 @@
-[![CI](https://github.com/FrickTobias/nd2tools/.github/workflows/CI/badge.svg)](https://github.com/FrickTobias/nd2tools/actions?query=branch%3Amain)
+[![CI](https://github.com/FrickTobias/nd2tools/.github/workflows/CI/badge.svg)]
 
 # ND2-tools
 
