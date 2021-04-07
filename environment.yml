@@ -13,6 +13,8 @@ dependencies:
   - imageio
   - matplotlib
   - pip
+  - conda-forge::nd2reader
+  - scikit
   - pip:
       - matplotlib-scalebar
       - pyqt5
