@@ -7,22 +7,26 @@ import imageio
 import pathlib
 import logging
 
-
 from matplotlib_scalebar.scalebar import ScaleBar
 
 logger = logging.getLogger(__name__)
 
 
 def main(args):
+    scalebar(image=args.image, pixelsize=args.pixelsize,
+             magnification=args.magnification, output=args.output, big=args.big)
+
+
+def scalebar(image, pixelsize, magnification, output, big=None):
     # Get screen pixel density
     dpi = get_screen_dpi()
 
     # Load image and extract
-    im = imageio.imread(args.image)
+    im = imageio.imread(image)
     width, height, channels = im.shape
 
     # Compensate size of pixel for objective magnification
-    pixel_size_real = args.pixelsize / args.magnification
+    pixel_size_real = pixelsize / magnification
 
     # Create subplot
     # Specifies figsize and dpi in order to keep original resolution
@@ -33,7 +37,7 @@ def main(args):
     ax.imshow(im, cmap="gray")
 
     # Scale bar settings
-    if args.big:
+    if big:
         scalebar_width = 0.015
         scalebar_length = 0.3
         font = {
@@ -51,7 +55,7 @@ def main(args):
     ax.add_artist(scalebar)
 
     # Save to out
-    plt.savefig(args.output, format="jpeg", bbox_inches='tight', pad_inches=0)
+    plt.savefig(output, format="jpeg", bbox_inches='tight', pad_inches=0)
 
 
 def get_screen_dpi():
