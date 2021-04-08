@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import imageio
 import pathlib
 import logging
-from argparse import ArgumentParser
+
 
 from matplotlib_scalebar.scalebar import ScaleBar
 

@@ -23,7 +23,8 @@ ND2 image handling
     ```
     pip install . 
     ```
-   For development the package can be installed in editable mode using `pip install -e .`.
+   For development the package can be installed in editable mode
+   using `pip install -e .`.
 
 ## Recipies
 

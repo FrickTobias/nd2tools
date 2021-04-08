@@ -3,13 +3,12 @@ Adds scalebars to images
 """
 
 import matplotlib.pyplot as plt
-import imageio
+#import imageio
 import pathlib
 import logging
-from argparse import ArgumentParser
 from nd2reader import ND2Reader
 
-from matplotlib_scalebar.scalebar import ScaleBar
+#from matplotlib_scalebar.scalebar import ScaleBar
 
 logger = logging.getLogger(__name__)
 
