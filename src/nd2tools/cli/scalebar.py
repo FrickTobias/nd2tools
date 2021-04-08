@@ -45,7 +45,8 @@ def main(args):
         font = {}
 
     # Create scale barnan
-    scalebar = ScaleBar(pixel_size_real, "um", frameon=False, length_fraction=scalebar_length,
+    scalebar = ScaleBar(pixel_size_real, "um", frameon=False,
+                        length_fraction=scalebar_length,
                         width_fraction=scalebar_width, font_properties=font)
     ax.add_artist(scalebar)
 
