@@ -24,7 +24,5 @@ def test_scalebar():
 
     return
 
-    #
-    # temp removal. Works locally
     #scalebar.scalebar(TESTDATA_IMAGE, 3.45, 10, TESTOUT_SCALEBAR)
-    #
+
