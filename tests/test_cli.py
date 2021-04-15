@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-from nd2tools.cli import scalebar
+# from nd2tools.cli import scalebar
 
 TESTDATA = Path("tests/testdata")
 TESTDATA_IMAGE = TESTDATA / "img.bmp"
