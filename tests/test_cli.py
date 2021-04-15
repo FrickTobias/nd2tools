@@ -21,8 +21,6 @@ def test_environment():
 
 
 def test_scalebar():
-
     return
 
-    #scalebar.scalebar(TESTDATA_IMAGE, 3.45, 10, TESTOUT_SCALEBAR)
-
+    # scalebar.scalebar(TESTDATA_IMAGE, 3.45, 10, TESTOUT_SCALEBAR)
