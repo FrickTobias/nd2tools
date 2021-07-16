@@ -32,6 +32,9 @@ def main(args):
 #        yield images
 #
 
+
+# TODO: Change so it assumes one image at the time and reads .png
+# TODO: Aka adapt to nd2tools split
 def add_arguments(parser):
     parser.add_argument(
         "image", type=pathlib.Path,
