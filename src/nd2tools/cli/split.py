@@ -55,9 +55,9 @@ def delete_keys(dictionary, key_list):
 def add_arguments(parser):
     parser.add_argument(
         "input", type=pathlib.Path,
-        help="Input .nd2 image"
+        help="Input PNG image"
     )
     parser.add_argument(
-        "-o", "--output",  # default="-",
+        "-o", "--output",
         help="Write to PNG file(s). Final name will be <output>.<iter_axes>-n.png."
     )

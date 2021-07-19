@@ -15,6 +15,7 @@ dependencies:
   - pip
   - conda-forge::nd2reader
   - scikit-learn
+  - pims
   - pip:
       - matplotlib-scalebar
       - pyqt5

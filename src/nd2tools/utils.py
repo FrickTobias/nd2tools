@@ -46,6 +46,12 @@ def guess_paired_path(path: Path):
     return None
 
 
+def get_iter_axes(nd2reader_parser_object, exclude):
+    all_axes_dict = nd2reader_parser_object.sizes.copy()
+    axes_dict = delete_keys(all_axes_dict, exclude)
+    axes_string = ''.join(axes_dict.keys())
+
+
 class Summary(Counter):
 
     def print_stats(self, name=None, value_width=15, print_to=sys.stderr):
@@ -75,3 +81,5 @@ class Summary(Counter):
 
             print(f"{name:<{max_name_width}} {value_str}", file=print_to)
         print("=" * width, file=print_to)
+
+
