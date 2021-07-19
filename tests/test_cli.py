@@ -23,4 +23,10 @@ def test_environment():
 def test_scalebar():
     return
 
+def test_crop():
+    return
+
+def test_split():
+    return
+
     # scalebar.scalebar(TESTDATA_IMAGE, 3.45, 10, TESTOUT_SCALEBAR)
