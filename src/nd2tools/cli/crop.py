@@ -2,12 +2,10 @@
 Crops nd2 images
 """
 
-import matplotlib.pyplot as plt
 import pathlib
 import logging
 import cv2
 import pims
-from nd2reader import ND2Reader
 
 logger = logging.getLogger(__name__)
 
