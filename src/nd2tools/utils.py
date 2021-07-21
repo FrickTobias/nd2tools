@@ -81,5 +81,3 @@ class Summary(Counter):
 
             print(f"{name:<{max_name_width}} {value_str}", file=print_to)
         print("=" * width, file=print_to)
-
-
