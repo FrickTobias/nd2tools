@@ -97,10 +97,10 @@ def add_arguments(parser):
         "-z", "--z_pos", default=0, type=int,
         help="Specify Z position. Default: %(default)s"
     )
-    #parser.add_argument(
+    # parser.add_argument(
     #    "-i", "--iteration", type=int,
     #    help="Choose frame based on capture time."
-    #)
+    # )
     parser.add_argument(
         "--info", action="store_true",
         help="Display possible values for -t, -v and -z for image. Exits after."

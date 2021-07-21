@@ -17,7 +17,7 @@ def main(args):
 
     logger.info("Cropping image")
     image_crop = pims.process.crop(image, (
-    (args.trim_left, args.trim_right), (args.trim_top, args.trim_bottom), (0, 0)))
+        (args.trim_left, args.trim_right), (args.trim_top, args.trim_bottom), (0, 0)))
 
     logger.info(f'Writing to file {args.output}')
     cv2.imwrite(args.output, image_crop)
