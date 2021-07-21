@@ -2,7 +2,6 @@
 Splits nd2 images into individual images.
 """
 
-import matplotlib.pyplot as plt
 import pathlib
 import logging
 import cv2
