@@ -10,12 +10,12 @@ dependencies:
   - conda-forge::tqdm
   - conda-forge::ruamel.yaml
   - conda-forge::importlib_resources
+  - conda-forge::pims
   - imageio
   - matplotlib
   - pip
   - conda-forge::nd2reader
   - scikit-learn
-  - pims
   - pip:
       - matplotlib-scalebar
       - pyqt5

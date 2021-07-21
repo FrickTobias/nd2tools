@@ -7,7 +7,6 @@ import pathlib
 import logging
 import cv2
 import sys
-import pims
 from nd2reader import ND2Reader
 
 logger = logging.getLogger(__name__)
@@ -57,7 +56,7 @@ def adjust_for_file_extension(filename, default_format="png",
         return filename, default_format
 
     # Check extension is accepted (otherwise adds default)
-    name, format = filename.rsplit(".", )
+    name, format = filename.rsplit(".", 1)
     if format not in accepted_extensions:
         return raw_name, default_format
     else:
