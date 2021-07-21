@@ -2,7 +2,6 @@
 Crops nd2 images
 """
 
-import pathlib
 import logging
 import cv2
 import pims
