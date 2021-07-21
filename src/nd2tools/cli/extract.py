@@ -58,7 +58,7 @@ def adjust_for_file_extension(filename, default_format="png",
     # Check extension is accepted (otherwise adds default)
     name, format = filename.rsplit(".", 1)
     if format not in accepted_extensions:
-        return raw_name, default_format
+        return filename, default_format
     else:
         return name, format
 

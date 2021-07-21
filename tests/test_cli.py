@@ -23,8 +23,10 @@ def test_environment():
 def test_scalebar():
     return
 
+
 def test_crop():
     return
+
 
 def test_split():
     return
