@@ -6,7 +6,6 @@ import pathlib
 import logging
 import cv2
 import sys
-import pims
 from nd2reader import ND2Reader
 
 logger = logging.getLogger(__name__)

@@ -5,7 +5,6 @@ Splits nd2 images into individual images.
 import pathlib
 import logging
 import cv2
-import sys
 from nd2reader import ND2Reader
 
 logger = logging.getLogger(__name__)
