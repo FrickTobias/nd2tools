@@ -5,7 +5,7 @@
 ND2 image handling
 
 - [Install](#install)
-- [Recipies](#Recipies)
+- [Usage](#usage)
 
 ## Install
 
@@ -25,9 +25,7 @@ ND2 image handling
     ```
    For development the package can be installed in editable mode
    using `pip install -e .`.
+   
+## Usage 
 
-## Recipies
-
-### Adding scalebar to image
-
-nd2tools scalebar <input-img.bmp> -bt -o <output-img.png>
+See `nd2tools -h`.
