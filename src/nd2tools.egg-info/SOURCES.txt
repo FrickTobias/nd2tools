@@ -27,6 +27,7 @@ src/nd2tools/__pycache__/__init__.cpython-38.pyc
 src/nd2tools/cli/__init__.py
 src/nd2tools/cli/crop.py
 src/nd2tools/cli/display.py
+src/nd2tools/cli/extract.py
 src/nd2tools/cli/scalebar.py
 src/nd2tools/cli/split.py
 tests/test_cli.py

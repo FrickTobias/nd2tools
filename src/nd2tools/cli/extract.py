@@ -16,7 +16,6 @@ EXCLUSION_LIST = list('x' 'y')
 
 def main(args):
     with ND2Reader(args.input) as images:
-
         if args.info:
             axes_dict = get_iter_axes_dict(images, exclude=EXCLUSION_LIST)
             print_dict(axes_dict, value_descriptor="max+1")
@@ -28,16 +27,41 @@ def main(args):
         frame_scaled = cv2.normalize(frame, dst=None, alpha=0, beta=65535,
                                      norm_type=cv2.NORM_MINMAX)
 
-        if not args.name:
-            name = ".".join(
-                ["t", str(args.time), "z", str(args.z_pos), "v", str(args.FOV)])
+        if args.metadata:
+            metadata = f"t-{args.time}.z-{args.z_pos}.z-{args.FOV}"
         else:
-            name = args.name
+            metadata = False
 
-        cv2.imshow(name, frame_scaled)
-        logger.info(f"Displaying image: {name}")
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        print(f"meta: {metadata}")
+        output = generate_filename(raw_name=args.output, metadata=metadata)
+
+        logger.info(f"Writing file: {output}")
+        cv2.imwrite(output, frame_scaled)
+
+
+def generate_filename(raw_name, metadata=False):
+    name, format = adjust_for_file_extension(raw_name)
+
+    if metadata:
+        output = f"{name}.{metadata}.{format}"
+    else:
+        output = f"{name}.{format}"
+
+    return output
+
+
+def adjust_for_file_extension(filename, default_format="png",
+                              accepted_extensions=("png", "PNG")):
+    # No extension
+    if "." not in filename:
+        return filename, default_format
+
+    # Check extension is accepted (otherwise adds default)
+    name, format = filename.rsplit(".", )
+    if format not in accepted_extensions:
+        return raw_name, default_format
+    else:
+        return name, format
 
 
 def get_iter_axes_dict(nd2reader_parser_object, exclude):
@@ -74,12 +98,20 @@ def add_arguments(parser):
         "-z", "--z_pos", default=0, type=int,
         help="Specify Z position. Default: %(default)s"
     )
+    #parser.add_argument(
+    #    "-i", "--iteration", type=int,
+    #    help="Choose frame based on capture time."
+    #)
     parser.add_argument(
         "--info", action="store_true",
         help="Display possible values for -t, -v and -z for image. Exits after."
     )
     parser.add_argument(
-        "--name",
-        help="Name the displayed image. Default: <Axes information>"
-
+        "-o", "--output",
+        help="Write to PNG file."
+    )
+    parser.add_argument(
+        "-m", "--metadata", action="store_true",
+        help="Add metadata to output file name. Final name will be "
+             "<output>.<iter_axes>-n.png. Default: %(default)s"
     )
