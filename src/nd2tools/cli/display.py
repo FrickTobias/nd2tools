@@ -32,10 +32,18 @@ def main(args):
         else:
             name = args.name
 
-        cv2.imshow(name, frame_scaled)
-        logger.info(f"Displaying image: {name}")
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        display(image, frame_scaled)
+
+    logger.info(f"Finished")
+
+def display(image, frame):
+
+    cv2.imshow(name, frame_scaled)
+    logger.info(f"Displaying image: {name}")
+    logger.info(f"Push any key to continue.")
+    cv2.waitKey(0)
+    logger.info(f"Closing windows")
+    cv2.destroyAllWindows()
 
 
 def get_iter_axes_dict(nd2reader_parser_object, exclude):
