@@ -75,3 +75,153 @@ class Summary(Counter):
 
             print(f"{name:<{max_name_width}} {value_str}", file=print_to)
         print("=" * width, file=print_to)
+
+
+class ImageCoordinates:
+    """
+    x1,y2 ----------- x2,y2
+      |                 |
+      |                 |
+      |                 |
+      |                 |
+      |                 |
+    x1,y1 ----------- x2,y1
+    """
+
+    def __init__(self, x1, x2, y1, y2):
+        # Never changing
+        self.original_x1 = x1
+        self.original_x2 = x2
+        self.original_y1 = y1
+        self.original_y2 = y2
+
+        # Cartesian coordinates
+        self.x1 = self.original_x1
+        self.x2 = self.original_x2
+        self.y1 = self.original_y1
+        self.y2 = self.original_y2
+
+        # Numpy conversions
+        self._update_numpy_coorinates()
+
+    def cut_out(self, x1, x2, y1, y2):
+        """
+        Cuts out a part of frame
+
+         + ------- + --------------- + ------- +
+         |         |                 |         |
+         |         |                 |         |
+         |         |                 |         |
+         + ----- x1,y2 ----------- x2,y2 ----- +
+         |         |                 |         |
+         |         |                 |         |
+         |         |                 |         |
+         |         |                 |         |
+         |         |                 |         |
+         + ----- x1,y1 ----------- x2,y1 ----- +
+         |         |                 |         |
+         |         |                 |         |
+         |         |                 |         |
+         + ------- + --------------- + ------- +
+
+        """
+        self.x1 = x1
+        self.x2 = x2
+        self.y1 = y1
+        self.y2 = y2
+        self._update_numpy_coorinates()
+
+    def trim(self, left, right, bottom, top):
+        """
+        Removes pixels from left, right, bottom and top of frame
+
+             left                       right
+         +----'----+                 +----'----+
+         '         '                 '         '
+
+         + ------- + --------------- + ------- +     -+
+         |         |                 |         |      |
+         |         |                 |         |      } top
+         |         |                 |         |      |
+         + ----- x1,y2 ----------- x2,y2 ----- +     -+
+         |         |                 |         |
+         |         |                 |         |
+         |         |                 |         |
+         |         |                 |         |
+         |         |                 |         |
+         + ----- x1,y1 ----------- x2,y1 ----- +     -+
+         |         |                 |         |      |
+         |         |                 |         |       } bottom
+         |         |                 |         |      |
+         + ------- + --------------- + ------- +     -+
+
+        """
+        self.x1 += left
+        self.x2 -= right
+        self.y1 += bottom
+        self.y2 -= top
+        self._update_numpy_coorinates()
+
+    # TODO: Correct for slicing errors. Truncation?
+    # TODO: Add possiblity to keep x/y
+    def split(self, x_pieces, y_pieces, x_keep=0, y_keep=0):
+        """
+        Splits frame into fractions and keeps one of them
+
+              x_keep = 0
+            (x_pieces = 1)
+         +--------''--------+
+         '                  '
+
+         + ---------------- + ---------------- +
+         |                  |                  |
+         |                  |                  |
+         |                  |                  |
+         |                  |                  |
+         |                  |                  |
+         |                  |                  |
+       x1,y2 ------------ x2,y2 -------------- +     -+
+         |                  |                  |      |
+         |                  |                  |      |
+         |                  |                  |       } y_keep = 0 (y_pieces = 2)
+         |                  |                  |      |
+         |                  |                  |      |
+         |                  |                  |      |
+       x1,y1 ------------ x2,y1 -------------- +     -+
+
+        """
+        x_chunk = int(self.width() / x_pieces)
+        y_chunk = int(self.height() / y_pieces)
+        self.x1 += x_keep * x_chunk
+        self.x2 = self.x1 + x_chunk
+        self.y1 += y_keep * y_chunk
+        self.y2 = self.y1 + y_chunk
+        self._update_numpy_coorinates()
+
+    def width(self):
+        return self.x2 - self.x1
+
+    def height(self):
+        return self.y2 - self.y1
+
+    def _update_numpy_coorinates(self):
+        """
+        Run after making any modifications to self.x1, self.x2, self.y1 or self.y2
+
+        Numpy has an inverted y-scale compared to cartesian coordinates, meaning a cut
+        starting at (x,y) = (0,0) cuts the top right corner instead of the bottom left.
+
+        Cartesian               Numpy
+
+           ^                       |      x
+         y |                    -- + ------->
+           |  IMAGE                |
+           |                       |  IMAGE
+        -- + ------->            y |
+           |       x               v
+
+        """
+        self.np_y1 = self.original_y2 - self.y2
+        self.np_y2 = self.original_y2 - self.y1
+        self.np_x1 = self.x1
+        self.np_x2 = self.x2
