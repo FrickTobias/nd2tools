@@ -32,13 +32,13 @@ def main(args):
         else:
             name = args.name
 
-        display(image, frame_scaled)
+        display(name, frame_scaled)
 
     logger.info(f"Finished")
 
-def display(image, frame):
+def display(name, frame):
 
-    cv2.imshow(name, frame_scaled)
+    cv2.imshow(name, frame)
     logger.info(f"Displaying image: {name}")
     logger.info(f"Push any key to continue.")
     cv2.waitKey(0)

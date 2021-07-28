@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 def main(commandline_arguments=None) -> int:
     logging.basicConfig(
         level=logging.INFO,
-        format="%(module)s - %(levelname)s: %(message)s"
+        format="%(name)s - %(levelname)s: %(message)s"
     )
 
     parser = ArgumentParser(description=__doc__, prog="nd2tools")
