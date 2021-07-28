@@ -5,8 +5,6 @@ Converts images to MP4 movies
 import pathlib
 import logging
 import cv2
-import sys
-import pims
 import numpy as np
 from tqdm import tqdm
 from nd2reader import ND2Reader
