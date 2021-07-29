@@ -12,6 +12,31 @@ from matplotlib_scalebar.scalebar import ScaleBar
 logger = logging.getLogger(__name__)
 
 
+# TODO: Change so it assumes one image at the time and reads .png
+# TODO: Aka adapt to nd2tools split
+def add_arguments(parser):
+    parser.add_argument(
+        "image", type=pathlib.Path,
+        help="Input image to add scale bar to."
+    )
+    parser.add_argument(
+        "pixelsize", type=float,
+        help="Pixel size in sensor in um."
+    )
+    parser.add_argument(
+        "magnification", type=float,
+        help="Magnification from objective."
+    )
+    parser.add_argument(
+        "--big", "-b", action="store_true",
+        help="Creates larger scale bar."
+    )
+    parser.add_argument(
+        "output",
+        help="Output file name. Will save in jpeg."
+    )
+
+
 def main(args):
     scalebar(image=args.image, pixelsize=args.pixelsize,
              magnification=args.magnification, output=args.output, big=args.big)
@@ -67,28 +92,3 @@ def get_screen_dpi():
     dpi = screen.physicalDotsPerInch()
     app.quit()
     return dpi
-
-
-# TODO: Change so it assumes one image at the time and reads .png
-# TODO: Aka adapt to nd2tools split
-def add_arguments(parser):
-    parser.add_argument(
-        "image", type=pathlib.Path,
-        help="Input image to add scale bar to."
-    )
-    parser.add_argument(
-        "pixelsize", type=float,
-        help="Pixel size in sensor in um."
-    )
-    parser.add_argument(
-        "magnification", type=float,
-        help="Magnification from objective."
-    )
-    parser.add_argument(
-        "--big", "-b", action="store_true",
-        help="Creates larger scale bar."
-    )
-    parser.add_argument(
-        "output",
-        help="Output file name. Will save in jpeg."
-    )

@@ -11,6 +11,17 @@ logger = logging.getLogger(__name__)
 EXCLUSION_LIST = list('x' 'y')
 
 
+def add_arguments(parser):
+    parser.add_argument(
+        "input", type=pathlib.Path,
+        help="Input PNG image"
+    )
+    parser.add_argument(
+        "-o", "--output",
+        help="Write to PNG file(s). Final name will be <output>.<iter_axes>-n.png."
+    )
+
+
 def main(args):
     with ND2Reader(args.input) as images:
         axes = get_iter_axes(images, exclude=EXCLUSION_LIST)
@@ -48,14 +59,3 @@ def delete_keys(dictionary, key_list):
     for key in key_list:
         del dictionary[key]
     return dictionary
-
-
-def add_arguments(parser):
-    parser.add_argument(
-        "input", type=pathlib.Path,
-        help="Input PNG image"
-    )
-    parser.add_argument(
-        "-o", "--output",
-        help="Write to PNG file(s). Final name will be <output>.<iter_axes>-n.png."
-    )

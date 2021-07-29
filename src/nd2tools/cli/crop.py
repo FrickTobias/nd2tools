@@ -9,17 +9,6 @@ import pims
 logger = logging.getLogger(__name__)
 
 
-def main(args):
-    image = cv2.imread(args.input)
-
-    logger.info("Cropping image")
-    image_crop = pims.process.crop(image, (
-        (args.trim_left, args.trim_right), (args.trim_top, args.trim_bottom), (0, 0)))
-
-    logger.info(f'Writing to file {args.output}')
-    cv2.imwrite(args.output, image_crop)
-
-
 def add_arguments(parser):
     parser.add_argument(
         "input", type=str,
@@ -45,3 +34,14 @@ def add_arguments(parser):
         "-o", "--output",
         help="Write to PNG file."
     )
+
+
+def main(args):
+    image = cv2.imread(args.input)
+
+    logger.info("Cropping image")
+    image_crop = pims.process.crop(image, (
+        (args.trim_left, args.trim_right), (args.trim_top, args.trim_bottom), (0, 0)))
+
+    logger.info(f'Writing to file {args.output}')
+    cv2.imwrite(args.output, image_crop)

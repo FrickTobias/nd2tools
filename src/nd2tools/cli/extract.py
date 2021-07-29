@@ -12,6 +12,42 @@ logger = logging.getLogger(__name__)
 EXCLUSION_LIST = list('x' 'y')
 
 
+def add_arguments(parser):
+    parser.add_argument(
+        "input", type=pathlib.Path,
+        help="Input PNG image"
+    )
+    parser.add_argument(
+        "-t", "--time", default=0, type=int,
+        help="Specify time. Default: %(default)s"
+    )
+    parser.add_argument(
+        "-v", "--FOV", default=0, type=int,
+        help="Specify field of view. Default: %(default)s"
+    )
+    parser.add_argument(
+        "-z", "--z_pos", default=0, type=int,
+        help="Specify Z position. Default: %(default)s"
+    )
+    # parser.add_argument(
+    #    "-i", "--iteration", type=int,
+    #    help="Choose frame based on capture time."
+    # )
+    parser.add_argument(
+        "--info", action="store_true",
+        help="Display possible values for -t, -v and -z for image. Exits after."
+    )
+    parser.add_argument(
+        "-o", "--output",
+        help="Write to PNG file."
+    )
+    parser.add_argument(
+        "-m", "--metadata", action="store_true",
+        help="Add metadata to output file name. Final name will be "
+             "<output>.<iter_axes>-n.png. Default: %(default)s"
+    )
+
+
 def main(args):
     with ND2Reader(args.input) as images:
         if args.info:
@@ -77,39 +113,3 @@ def delete_keys(dictionary, key_list):
     for key in key_list:
         del dictionary[key]
     return dictionary
-
-
-def add_arguments(parser):
-    parser.add_argument(
-        "input", type=pathlib.Path,
-        help="Input PNG image"
-    )
-    parser.add_argument(
-        "-t", "--time", default=0, type=int,
-        help="Specify time. Default: %(default)s"
-    )
-    parser.add_argument(
-        "-v", "--FOV", default=0, type=int,
-        help="Specify field of view. Default: %(default)s"
-    )
-    parser.add_argument(
-        "-z", "--z_pos", default=0, type=int,
-        help="Specify Z position. Default: %(default)s"
-    )
-    # parser.add_argument(
-    #    "-i", "--iteration", type=int,
-    #    help="Choose frame based on capture time."
-    # )
-    parser.add_argument(
-        "--info", action="store_true",
-        help="Display possible values for -t, -v and -z for image. Exits after."
-    )
-    parser.add_argument(
-        "-o", "--output",
-        help="Write to PNG file."
-    )
-    parser.add_argument(
-        "-m", "--metadata", action="store_true",
-        help="Add metadata to output file name. Final name will be "
-             "<output>.<iter_axes>-n.png. Default: %(default)s"
-    )
