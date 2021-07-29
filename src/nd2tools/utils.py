@@ -162,7 +162,6 @@ class ImageCoordinates:
         self.y2 -= top
         self._update_numpy_coorinates()
 
-    # TODO: Correct for slicing errors. Truncation?
     # TODO: Add possiblity to keep x/y
     def split(self, x_pieces, y_pieces, x_keep=0, y_keep=0):
         """

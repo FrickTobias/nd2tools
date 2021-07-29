@@ -14,6 +14,50 @@ from nd2tools.utils import ImageCoordinates
 logger = logging.getLogger(__name__)
 
 
+def add_arguments(parser):
+    parser.add_argument(
+        "input", type=pathlib.Path,
+        help="Input PNG image"
+    )
+    parser.add_argument(
+        "-o", "--output",
+        help="Write to MP4 file."
+    )
+    parser.add_argument(
+        "-f", "--fps", type=int, default=4,
+        help="Frames per second in output movie."
+    )
+    parser.add_argument(
+        "-c", "--cut", nargs=4, type=int,
+        metavar=("x1", "x2", "y1", "y2"),
+        help="Cut out frame x1y1:x2y2."
+    )
+    parser.add_argument(
+        "-t", "--trim", nargs=4, type=int,
+        metavar=("LEFT", "RIGHT", "BOTTOM", "TOP"),
+        help="Trim images [pixels]. Done after --cut."
+    )
+    parser.add_argument(
+        "-s", "--split", type=int, nargs=2, metavar=("X_PIECES", "Y_PIECES"),
+        help="Splits images."
+    )
+    parser.add_argument(
+        "--scaling", choices=["fast", "continuous", "independant"],
+        default="fast",
+        help="""
+        This option determined how min/max are set for conversion from 16bit to 8bit 
+        color space. Default: %(default)s.
+
+        fast:           first_image
+
+        continuous:     images_read(frame_number)
+
+        independant:    current_image 
+        """
+    )
+    # TODO: Add option for keeping specific xy/slicing window (or all)
+
+
 def main(args):
     with ND2Reader(args.input) as images:
         output = generate_filename(raw_name=args.output)
@@ -23,8 +67,9 @@ def main(args):
         im_xy = adjust_frame(im_xy, args.split, args.cut, args.trim)
         write_video_greyscale(file_path=output, frames=images, fps=args.fps,
                               width=im_xy.width(), height=im_xy.height(),
-                              crop_x1=im_xy.np_x1, crop_x2=im_xy.np_x2,
-                              crop_y1=im_xy.np_y1, crop_y2=im_xy.np_y2)
+                              scaling=args.scaling, crop_x1=im_xy.np_x1,
+                              crop_x2=im_xy.np_x2, crop_y1=im_xy.np_y1,
+                              crop_y2=im_xy.np_y2)
         logger.info(f"Finished")
 
 
@@ -79,7 +124,7 @@ def adjust_for_file_extension(filename, default_format="mp4",
         return name, format
 
 
-def write_video_greyscale(file_path, frames, fps, width, height, crop_x1=None,
+def write_video_greyscale(file_path, frames, fps, width, height, scaling, crop_x1=None,
                           crop_x2=None, crop_y1=None, crop_y2=None):
     """
     Writes frames to an mp4 video file
@@ -93,12 +138,16 @@ def write_video_greyscale(file_path, frames, fps, width, height, crop_x1=None,
     fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
     writer = cv2.VideoWriter(filename=file_path, fourcc=fourcc, fps=fps,
                              frameSize=(width, height), isColor=0)
-    for frame in tqdm(frames, desc=f"Saving images to movie: {file_path}",
+    scaling_min_max = ScalingMinMax(mode=scaling, frames=frames)
+    for frame in tqdm(frames, desc=f"Saving movie to file: {file_path}",
                       unit=" frames"):
         frame = frame[crop_y1:crop_y2, crop_x1:crop_x2]
 
-        # TODO: Fix color scaling between frames
-        frame_8bit = map_uint16_to_uint8(frame)
+        if scaling_min_max.mode == "continuous":
+            scaling_min_max.update(frame)
+
+        frame_8bit = map_uint16_to_uint8(frame, lower_bound=scaling_min_max.min,
+                                         upper_bound=scaling_min_max.max)
         writer.write(frame_8bit)
 
     writer.release()
@@ -141,30 +190,20 @@ def map_uint16_to_uint8(img, lower_bound=None, upper_bound=None):
     return lut[img].astype(np.uint8)
 
 
-def add_arguments(parser):
-    parser.add_argument(
-        "input", type=pathlib.Path,
-        help="Input PNG image"
-    )
-    parser.add_argument(
-        "-o", "--output",
-        help="Write to MP4 file."
-    )
-    parser.add_argument(
-        "-f", "--fps", type=int, default=4,
-        help="Frames per second in output movie."
-    )
-    parser.add_argument(
-        "-c", "--cut", nargs=4, type=int,
-        metavar=("x1", "x2", "y1", "y2"),
-        help="Cut out frame x1y1:x2y2."
-    )
-    parser.add_argument(
-        "-t", "--trim", nargs=4, type=int,
-        metavar=("LEFT", "RIGHT", "BOTTOM", "TOP"),
-        help="Trim images [pixels]. Done after --cut."
-    )
-    parser.add_argument(
-        "-s", "--split", type=int, nargs=2, metavar=("X_PIECES", "Y_PIECES"),
-        help="Splits images."
-    )
+class ScalingMinMax:
+
+    def __init__(self, mode, frames):
+
+        self.mode = mode
+        if self.mode == "fast" or self.mode == "continuous":
+            self.min = np.min(frames[0])
+            self.max = np.max(frames[0])
+        elif self.mode == "independant":
+            self.min = None
+            self.max = None
+
+    def update(self, frame):
+        frame_min = np.min(frame[0])
+        frame_max = np.max(frame[0])
+        self.min = min(self.min, frame_min)
+        self.max = max(self.max, frame_max)
