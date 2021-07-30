@@ -63,15 +63,15 @@ def main(args):
 
         display(name, frame_8bit)
 
-    logger.info(f"Finished")
+    logger.info("Finished")
 
 
 def display(name, frame):
     cv2.imshow(name, frame)
     logger.info(f"Displaying image: {name}")
-    logger.info(f"Push any key to continue.")
+    logger.info("Push any key to continue.")
     cv2.waitKey(0)
-    logger.info(f"Closing windows")
+    logger.info("Closing windows")
     cv2.destroyAllWindows()
 
 
