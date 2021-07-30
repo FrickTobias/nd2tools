@@ -73,7 +73,7 @@ def main(args):
                               scaling=args.scaling, crop_x1=im_xy.np_x1,
                               crop_x2=im_xy.np_x2, crop_y1=im_xy.np_y1,
                               crop_y2=im_xy.np_y2)
-        logger.info(f"Finished")
+        logger.info("Finished")
 
 
 def adjust_frame(image_coordinates, split, cut, trim):
@@ -156,9 +156,6 @@ def write_video_greyscale(file_path, frames, fps, width, height, scaling, crop_x
     writer.release()
 
 
-
-
-
 class ScalingMinMax:
 
     def __init__(self, mode, frames):
@@ -172,7 +169,7 @@ class ScalingMinMax:
             self.max = None
         elif self.mode == "naive":
             self.min = 0
-            self.min = 65535 # = 16^2 - 1
+            self.min = 65535  # = 16^2 - 1
 
     def update(self, frame):
         frame_min = np.min(frame[0])

@@ -1,6 +1,7 @@
 import re
 from pathlib import Path
 import sys
+import numpy as np
 from collections import Counter
 
 if sys.stderr.isatty():

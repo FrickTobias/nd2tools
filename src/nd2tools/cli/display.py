@@ -61,7 +61,7 @@ def main(args):
         else:
             name = args.name
 
-        display(name, frame_scaled)
+        display(name, frame_8bit)
 
     logger.info(f"Finished")
 

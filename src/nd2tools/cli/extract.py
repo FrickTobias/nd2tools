@@ -71,7 +71,7 @@ def main(args):
         output = generate_filename(raw_name=args.output, metadata=metadata)
 
         logger.info(f"Writing file: {output}")
-        cv2.imwrite(output, frame_scaled)
+        cv2.imwrite(output, frame_8bit)
 
 
 def generate_filename(raw_name, metadata=False):

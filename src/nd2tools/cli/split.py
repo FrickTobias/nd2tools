@@ -37,7 +37,7 @@ def main(args):
             axes_info = key_value_string(frame.metadata['coords'])
             output = f'{args.output}.{axes_info}.png'
             logger.info(f'Writing to file {output}')
-            cv2.imwrite(output, frame_scaled)
+            cv2.imwrite(output, frame_8bit)
 
 
 def key_value_string(dictionary, major_separator='.', minor_separator='-'):
