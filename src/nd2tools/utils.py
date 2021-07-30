@@ -46,6 +46,48 @@ def guess_paired_path(path: Path):
     return None
 
 
+#
+# Modified from stackoverflow
+# https://stackoverflow.com/questions/25485886/how-to-convert-a-16-bit-to-an-8-bit-image-in-opencv
+def map_uint16_to_uint8(img, lower_bound=None, upper_bound=None):
+    '''
+    Map a 16-bit image trough a lookup table to convert it to 8-bit.
+
+    lower_bound and upper_bound are not 0 and 2^16-1 as default because most of the time
+    images do not cover all of the color space, meaning you can retain more information
+    by only including part of the 16bit spectra and the linearly convert to 8bit space.
+    Here default is min/max of image which is commonly used, for instance by ImageJ.
+
+    Parameters
+    ----------
+    img: numpy.ndarray[np.uint16]
+        image that should be mapped
+    lower_bound: int, optional
+        lower bound of the range that should be mapped to ``[0, 255]``,
+        value must be in the range ``[0, 65535]`` and smaller than `upper_bound`
+        (defaults to ``numpy.min(img)``)
+    upper_bound: int, optional
+       upper bound of the range that should be mapped to ``[0, 255]``,
+       value must be in the range ``[0, 65535]`` and larger than `lower_bound`
+       (defaults to ``numpy.max(img)``)
+
+    Returns
+    -------
+    numpy.ndarray[uint8]
+    '''
+    if lower_bound is None:
+        lower_bound = np.min(img)
+    if upper_bound is None:
+        upper_bound = np.max(img)
+
+    lut = np.concatenate([
+        np.zeros(lower_bound, dtype=np.uint16),
+        np.linspace(0, 255, upper_bound - lower_bound).astype(np.uint16),
+        np.ones(2 ** 16 - upper_bound, dtype=np.uint16) * 255
+    ])
+    return lut[img].astype(np.uint8)
+
+
 class Summary(Counter):
 
     def print_stats(self, name=None, value_width=15, print_to=sys.stderr):

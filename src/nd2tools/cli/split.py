@@ -7,6 +7,8 @@ import logging
 import cv2
 from nd2reader import ND2Reader
 
+from nd2tools.utils import map_uint16_to_uint8
+
 logger = logging.getLogger(__name__)
 EXCLUSION_LIST = list('x' 'y')
 
@@ -29,8 +31,7 @@ def main(args):
         logger.info(f'Image axes: {axes}')
         for iteration, frame in enumerate(images):
             # Scaling image, needed because image is in 16bit and png has max 256.
-            frame_scaled = cv2.normalize(frame, dst=None, alpha=0, beta=65535,
-                                         norm_type=cv2.NORM_MINMAX)
+            frame_8bit = map_uint16_to_uint8(frame, 0, 65535)
 
             # Fetches metadata info, FOV, time, Z pos, channels
             axes_info = key_value_string(frame.metadata['coords'])

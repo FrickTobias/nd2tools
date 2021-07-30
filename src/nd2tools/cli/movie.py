@@ -10,6 +10,7 @@ from tqdm import tqdm
 from nd2reader import ND2Reader
 
 from nd2tools.utils import ImageCoordinates
+from nd2tools.utils import map_uint16_to_uint8
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ def add_arguments(parser):
         help="Splits images."
     )
     parser.add_argument(
-        "--scaling", choices=["fast", "continuous", "independant"],
+        "--scaling", choices=["fast", "continuous", "independant", "naive"],
         default="fast",
         help="""
         This option determined how min/max are set for conversion from 16bit to 8bit 
@@ -53,6 +54,8 @@ def add_arguments(parser):
         continuous:     images_read(frame_number)
 
         independant:    current_image 
+        
+        naive:          Uses min=0 and max=2^16-1
         """
     )
     # TODO: Add option for keeping specific xy/slicing window (or all)
@@ -153,41 +156,7 @@ def write_video_greyscale(file_path, frames, fps, width, height, scaling, crop_x
     writer.release()
 
 
-#
-# Modified from stackoverflow
-# https://stackoverflow.com/questions/25485886/how-to-convert-a-16-bit-to-an-8-bit-image-in-opencv
-def map_uint16_to_uint8(img, lower_bound=None, upper_bound=None):
-    '''
-    Map a 16-bit image trough a lookup table to convert it to 8-bit.
 
-    Parameters
-    ----------
-    img: numpy.ndarray[np.uint16]
-        image that should be mapped
-    lower_bound: int, optional
-        lower bound of the range that should be mapped to ``[0, 255]``,
-        value must be in the range ``[0, 65535]`` and smaller than `upper_bound`
-        (defaults to ``numpy.min(img)``)
-    upper_bound: int, optional
-       upper bound of the range that should be mapped to ``[0, 255]``,
-       value must be in the range ``[0, 65535]`` and larger than `lower_bound`
-       (defaults to ``numpy.max(img)``)
-
-    Returns
-    -------
-    numpy.ndarray[uint8]
-    '''
-    if lower_bound is None:
-        lower_bound = np.min(img)
-    if upper_bound is None:
-        upper_bound = np.max(img)
-
-    lut = np.concatenate([
-        np.zeros(lower_bound, dtype=np.uint16),
-        np.linspace(0, 255, upper_bound - lower_bound).astype(np.uint16),
-        np.ones(2 ** 16 - upper_bound, dtype=np.uint16) * 255
-    ])
-    return lut[img].astype(np.uint8)
 
 
 class ScalingMinMax:
@@ -201,6 +170,9 @@ class ScalingMinMax:
         elif self.mode == "independant":
             self.min = None
             self.max = None
+        elif self.mode == "naive":
+            self.min = 0
+            self.min = 65535 # = 16^2 - 1
 
     def update(self, frame):
         frame_min = np.min(frame[0])

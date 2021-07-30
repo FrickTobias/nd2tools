@@ -8,6 +8,8 @@ import cv2
 import sys
 from nd2reader import ND2Reader
 
+from nd2tools.utils import map_uint16_to_uint8
+
 logger = logging.getLogger(__name__)
 EXCLUSION_LIST = list('x' 'y')
 
@@ -51,8 +53,7 @@ def main(args):
         frame = images.get_frame_2D(t=args.time, z=args.z_pos, v=args.FOV)
 
         # Scaling image, needed because image is in 16bit and png has max 256.
-        frame_scaled = cv2.normalize(frame, dst=None, alpha=0, beta=65535,
-                                     norm_type=cv2.NORM_MINMAX)
+        frame_8bit = map_uint16_to_uint8(frame, 0, 65535)
 
         if not args.name:
             name = ".".join(
