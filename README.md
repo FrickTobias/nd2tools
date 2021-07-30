@@ -1,4 +1,4 @@
-[![CI](https://github.com/FrickTobias/nd2tools/workflows/CI/badge.svg?branch=main)](https://github.com/FrickTobias/nd2tools/actions?query=branch%3Amain)
+[![CI Linux](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_linux.yaml/badge.svg?branch=main&event=schedule)](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_linux.yaml) [![CI MacOS](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_macos.yaml/badge.svg?branch=main&event=schedule)](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_macos.yaml)
 
 # ND2-tools
 
