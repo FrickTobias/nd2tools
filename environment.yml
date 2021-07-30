@@ -1,12 +1,12 @@
 # Whenever this file is updated, you need to run misc/condalock.sh to create
 # the environment.lock.yml file.
-name: nd2tools
+
 channels:
   - conda-forge
   - bioconda
   - defaults
 dependencies:
-  - conda-forge::python=3.8
+  - conda-forge::python=3.7
   - conda-forge::tqdm
   - conda-forge::ruamel.yaml
   - conda-forge::importlib_resources
