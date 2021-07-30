@@ -45,18 +45,10 @@ def add_arguments(parser):
     parser.add_argument(
         "--scaling", choices=["fast", "continuous", "independant", "naive"],
         default="fast",
-        help="""
-        This option determined how min/max are set for conversion from 16bit to 8bit 
-        color space. Default: %(default)s.
-
-        fast:           first_image
-
-        continuous:     images_read(frame_number)
-
-        independant:    current_image 
-        
-        naive:          Uses min=0 and max=2^16-1
-        """
+        help="""This option determined how min/max are set for conversion from 16bit to 8bit 
+        color space. Default: %(default)s. fast: first_image. continuous: 
+        images_read(frame_number). independant: current_image. naive: Uses min=0 and 
+        max=2^16-1"""
     )
     # TODO: Add option for keeping specific xy/slicing window (or all)
 
