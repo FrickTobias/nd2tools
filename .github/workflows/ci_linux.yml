@@ -25,7 +25,7 @@ jobs:
         with:
           activate-environment: testenv
           auto-update-conda: false
-          environment-file: environment.osx-64.lock
+          environment-file: environment.osx.lock.yml
       - name: Install and check env
         run: |
           conda activate testenv
