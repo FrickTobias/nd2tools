@@ -14,7 +14,7 @@ on:
 jobs:
   run:
     name: Run submodules
-    timeout-minutes: 5
+    timeout-minutes: 10
     runs-on: macos-latest
     defaults:
       run:
