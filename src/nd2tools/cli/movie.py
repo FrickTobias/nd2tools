@@ -40,7 +40,12 @@ def add_arguments(parser):
     )
     parser.add_argument(
         "-s", "--split", type=int, nargs=2, metavar=("X_PIECES", "Y_PIECES"),
-        help="Splits images."
+        help="Splits images. Combine with -k (--keep) to specify which slice to keep."
+    )
+    parser.add_argument(
+        "-k", "--keep", nargs=2, default=["1", "1"], metavar=("X", "Y"),
+        help="Specify which slice to keep. Use ':' to keep all and save to -o "
+             "(--output)-Xn-Yn.mp4. %(default)s."
     )
     parser.add_argument(
         "--scaling", choices=["fast", "continuous", "independant", "naive"],
@@ -59,7 +64,7 @@ def main(args):
 
         # Adjusting output frame coordinates
         im_xy = ImageCoordinates(x1=0, x2=images.sizes['x'], y1=0, y2=images.sizes['y'])
-        im_xy = adjust_frame(im_xy, args.split, args.cut, args.trim)
+        im_xy = adjust_frame(im_xy, args.keep, args.split, args.cut, args.trim)
         write_video_greyscale(file_path=output, frames=images, fps=args.fps,
                               width=im_xy.width(), height=im_xy.height(),
                               scaling=args.scaling, crop_x1=im_xy.np_x1,
@@ -68,12 +73,14 @@ def main(args):
         logger.info("Finished")
 
 
-def adjust_frame(image_coordinates, split, cut, trim):
+def adjust_frame(image_coordinates, keep, split, cut, trim):
     """
     Adjusts xy coordinates of image.
     """
     if split:
-        image_coordinates.split(*split)
+        keep_0_index = [ int(xy) - 1 for xy in keep ]
+        x, y = keep_0_index
+        image_coordinates.split(*split, x_keep=x, y_keep=y)
         logger.info(
             f"Slicing frames to: x={image_coordinates.x1}:{image_coordinates.x2}, "
             f"y={image_coordinates.y1}:{image_coordinates.y2}"
