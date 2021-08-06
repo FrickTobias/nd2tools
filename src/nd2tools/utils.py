@@ -241,7 +241,7 @@ class ImageCoordinates:
         y1 = self.y1() + bottom
         y2 = self.y2() - top
 
-        self._set(x1, x2, y1, y2)
+        self._set_xy(x1, x2, y1, y2)
 
     def split(self, x_pieces, y_pieces, x_keep=0, y_keep=0):
         """
