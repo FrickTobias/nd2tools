@@ -4,18 +4,17 @@ Converts images to MP4 movies
 
 import pathlib
 import logging
+import time
 import cv2
 import numpy as np
 from tqdm import tqdm
+import seaborn as sns
+
 from nd2reader import ND2Reader
 
 from nd2tools.utils import ImageCoordinates
 from nd2tools.utils import map_uint16_to_uint8
 from nd2tools.utils import generate_filename
-
-from PIL import Image
-from PIL import ImageFont
-from PIL import ImageDraw
 
 logger = logging.getLogger(__name__)
 
@@ -149,62 +148,210 @@ def write_video_greyscale(file_prefix, images, fps, width, height,
     """
 
     # Opens one file per frame_pos tracks using open_video_files.dict[frame_pos] = writer
-    open_video_files = OpenVideoFiles(file_prefix, fps, width, height, frame_pos_list)
+    open_video_files = OpenVideoFiles(file_prefix, fps, width, height, frame_pos_list,
+                                      is_color=1)
 
     # Writing outputs
     scaling_min_max = ScalingMinMax(mode=conversion_method, scaling=scale_conversion,
                                     images=images)
     first_frame = clip_start
     last_frame = len(images) - clip_stop
+    timesteps = get_time(images)
+    # timesteps = [datetime(timestep) for timestep in timesteps]
     for frame_number, image in enumerate(
             tqdm(images, desc=f"Writing movie file(s)", unit=" images",
                  total=last_frame)):
 
+        # Option: --clip-start
         if frame_number < first_frame:
             continue
 
         # Split image and writes to appropriate files
+        acquisition_time = timesteps[frame_number]
         for frame_pos in frame_pos_list:
+
+            # Crop image
             x1, x2, y1, y2 = frame_pos
-            image_cropped = image[y1:y2, x1:x2]
+            image = image[y1:y2, x1:x2]
 
-            if scaling_min_max.mode == "continuous" or scaling_min_max.mode == "current":
-                logger.info(f"frame: {frame_number}")
-                scaling_min_max.update(image_cropped)
+            # convert 16bit to 8bit
+            if image.dtype == "uint16":
+                if scaling_min_max.mode == "continuous" or scaling_min_max.mode == "current":
+                    logger.info(f"frame: {frame_number}")
+                    scaling_min_max.update(image_cropped)
+                image = map_uint16_to_uint8(image,
+                                            lower_bound=scaling_min_max.min_current,
+                                            upper_bound=scaling_min_max.max_current)
 
-            image_cropped_8bit = map_uint16_to_uint8(image_cropped,
-                                                     lower_bound=scaling_min_max.min_current,
-                                                     upper_bound=scaling_min_max.max_current)
+            # Add text to frames
+            image = gray_to_color(image)  # Convert to color (copy to 3 channels)
+            image = add_text_to_image(image, text=f"t: {acquisition_time}",
+                                      background=True)
 
-            # TODO: do this properly
-            time = get_metadata(image)
-            print(time)
-            image_cropped_8bit = add_text_to_image(image_cropped_8bit, text="TESTING!")
+            # TODO: Add scalebar functionality
+            #image = add_scalebar(image, pixel_size=2, magnification=10)
 
-            open_video_files.dictionary[frame_pos].write(image_cropped_8bit)
+            # Write image
+            open_video_files.dictionary[frame_pos].write(image)
 
+        # Option: --clip-end
         if frame_number >= last_frame:
             break
 
     # Close files
     open_video_files.close()
 
-# TODO: Dot this properly
-def get_metadata(image):
-    time = image.metadata["date"]
-    import pdb
-    pdb.set_trace()
-    return time
 
-# TODO: Dot this properly
-def add_text_to_image(image, text):
+
+
+## TODO: Get this funcional
+#def add_scalebar(image, pixel_size, magnification):
+#    #import matplotlib.pyplot as plt
+#    #import matplotlib.cbook as cbook
+#    #from matplotlib_scalebar.scalebar import ScaleBar
+#    #plt.figure()
+#    #image = plt.imread(cbook.get_sample_data('grace_hopper.png'))
+#    #f = plt.imshow(image)
+#    #scalebar = ScaleBar(0.2)  # 1 pixel = 0.2 meter
+#    #plt.gca().add_artist(scalebar)
+#    #plt.gca().add_artist(scalebar)
+#    #import pdb
+#    #pdb.set_trace()
+#    #return f
+#
+#
+#    #import numpy as np
+#    #col_1 = np.vstack([image, image])
+#    #cv2.imshow("test", col_1)
+#    #cv2.waitKey(0)
+#
+#    from matplotlib_scalebar.scalebar import ScaleBar
+#    import matplotlib as plt
+#    scalebar_width = 0.01
+#    scalebar_length = 0.2
+#    font = {}
+#
+#    # Get screen pixel density
+#    dpi = get_screen_dpi()
+#
+#    # Load image and extract
+#    width, height, channels = image.shape
+#
+#    # Compensate size of pixel for objective magnification
+#    pixel_size_real = pixel_size / magnification
+#
+#    # Create subplot
+#    # Specifies figsize and dpi in order to keep original resolution
+#    fig, ax = plt.pyplot.subplots(figsize=(height / dpi, width / dpi), dpi=dpi)
+#    ax.axis("off")
+#
+#    # Plot image
+#    ax.imshow(image, cmap="gray")
+#
+#    # Create scale barnan
+#    scalebar = ScaleBar(pixel_size_real, "um", frameon=False,
+#                        length_fraction=scalebar_length,
+#                        width_fraction=scalebar_width, font_properties=font)
+#    ax.add_artist(scalebar)
+#    #import pdb
+#    #pdb.set_trace()
+#
+#    from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+#    from matplotlib.figure import Figure
+#
+#    canvas = FigureCanvas(fig)
+#
+#    canvas.draw()  # draw the canvas, cache the renderer
+#    image = np.fromstring(canvas.tostring_rgb(), dtype='uint8')
+#
+#    import pdb
+#    pdb.set_trace()
+#    #plt.pyplot.show()
+#
+#
+#
+#    return image
+#    # Save to out
+#    # plt.pyplot.savefig(output, format="jpeg", bbox_inches='tight', pad_inches=0)
+#
+#
+## TODO: Get this funcional
+#def get_screen_dpi():
+#    # Get dpi
+#    import sys
+#    from PyQt5.QtWidgets import QApplication
+#    app = QApplication(sys.argv)
+#    screen = app.screens()[0]
+#    dpi = screen.physicalDotsPerInch()
+#    app.quit()
+#    return dpi
+
+
+def get_time(images, format_string="%H:%M:%S"):
+    """
+    Extracts time information from nd2 images.
+
+    :param images: ImageSequences
+    :return t_tring_list: [t1, t2, t3...]
+    """
+    t_milliseconds_list = images.timesteps
+    t_string_list = list()
+    for t_milliseconds in t_milliseconds_list:
+        t = t_milliseconds / 1000
+        t_instance = time.gmtime(t)
+        t_string = time.strftime(format_string, t_instance)
+        t_string_list.append(t_string)
+
+    return t_string_list
+
+
+# TODO: Do this properly
+def add_text_to_image(image, text, text_pos=(50, 50), font_size=1, bold=False,
+                      box=False, background=False):
+    """
+    Adds yellow text to top left of image
+    """
+
+    # Text
     font = cv2.FONT_HERSHEY_SIMPLEX
-    pos = (100, 100)
-    cv2.putText(image, text, pos, font, fontScale=3, color=(255, 255, 255), thickness=5)
-    cv2.imshow("image", image)
+    if bold:
+        thickness = font_size * 3
+    else:
+        thickness = font_size * 2
+
+    # Color
+    color_info = sns.color_palette("gist_ncar_r")[1]
+    text_color = [(1 - x) * 255 for x in color_info]
+
+    # Add black box
+    if background:
+        text_size, _ = cv2.getTextSize(text, font, font_size, thickness)
+        image, text_pos = add_text_background(image, text_pos, text_size, font_size,
+                                              border=23)
+
+    # Add to image
+    cv2.putText(image, text, text_pos, font, font_size, text_color, thickness)
     return image
 
-    #return image
+
+# TODO: Do this properly
+def add_text_background(image, pos, text_size, font_size, border=0, color=(0, 0, 0)):
+    # Add box to image
+    box_x, box_y = pos
+    text_w, text_h = text_size
+    box_dimensions = (box_x + text_w + border, box_y + text_h + border)
+    cv2.rectangle(image, pos, box_dimensions, color, -1)
+
+    # Adjust text pos to middle of box
+    border_offset = int(border / 2)
+    text_pos = (box_x + border_offset, box_y + text_h + font_size - 1 + border_offset)
+
+    return image, text_pos
+
+
+def gray_to_color(image):
+    gray_as_color = cv2.merge([image, image, image])
+    return gray_as_color
 
 
 class OpenVideoFiles:

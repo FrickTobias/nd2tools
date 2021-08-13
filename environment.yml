@@ -18,6 +18,7 @@ dependencies:
   - scikit-learn
   - imageio-ffmpeg
   - tqdm
+  - time
   - pip:
       - matplotlib-scalebar
       - pyqt5
