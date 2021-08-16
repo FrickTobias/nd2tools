@@ -6,19 +6,21 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - conda-forge::python=3.7
+  - python=3.8
   - conda-forge::tqdm
   - conda-forge::ruamel.yaml
   - conda-forge::importlib_resources
-  - conda-forge::pims
+  - pims
   - imageio
   - matplotlib
   - pip
-  - conda-forge::nd2reader
+  - nd2reader=3.2
   - scikit-learn
+  - scikit-image
   - imageio-ffmpeg
   - tqdm
   - time
+  - seaborn
   - pip:
       - matplotlib-scalebar
       - pyqt5

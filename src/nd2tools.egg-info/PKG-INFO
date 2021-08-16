@@ -1,44 +1,10 @@
 Metadata-Version: 2.1
 Name: nd2tools
-Version: 0.1.dev46+ga1aa449.d20210721
+Version: 0.1.dev80+g6cc0393.d20210816
 Summary: Nd2 image handling package
 Home-page: UNKNOWN
 Author: Tobias Frick
 License: MIT
-Description: [![CI](https://github.com/FrickTobias/nd2tools/workflows/CI/badge.svg?branch=main)](https://github.com/FrickTobias/nd2tools/actions?query=branch%3Amain)
-        
-        # ND2-tools
-        
-        ND2 image handling
-        
-        - [Install](#install)
-        - [Recipies](#Recipies)
-        
-        ## Install
-        
-        1. Clone the ND2-tools github
-            ```
-            git clone https://github.com/FrickTobias/nd2tools.git 
-            ```
-        
-        2. Install the base environment for `environment.yml` file using conda:
-            ```
-            conda env create -n nd2tools -f environment.yml 
-            ```
-        
-        3. Install the ND2-tools package:
-            ```
-            pip install . 
-            ```
-           For development the package can be installed in editable mode
-           using `pip install -e .`.
-        
-        ## Recipies
-        
-        ### Adding scalebar to image
-        
-        nd2tools scalebar <input-img.bmp> -bt -o <output-img.png>
-        
 Platform: UNKNOWN
 Classifier: Development Status :: 4 - Beta
 Classifier: License :: OSI Approved :: MIT License
@@ -47,3 +13,38 @@ Classifier: Programming Language :: Python :: 3.8
 Classifier: Programming Language :: Python :: 3.9
 Description-Content-Type: text/markdown; charset=UTF-8
 Provides-Extra: dev
+License-File: LICENSE
+
+[![CI Linux](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_linux.yaml/badge.svg?branch=main&event=schedule)](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_linux.yaml) [![CI MacOS](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_macos.yaml/badge.svg?branch=main&event=schedule)](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_macos.yaml)
+
+# ND2-tools
+
+ND2 image handling
+
+- [Install](#install)
+- [Usage](#usage)
+
+## Install
+
+1. Clone the ND2-tools github
+    ```
+    git clone https://github.com/FrickTobias/nd2tools.git 
+    ```
+
+2. Install the base environment for `environment.yml` file using conda:
+    ```
+    conda env create -n nd2tools -f environment.yml 
+    ```
+
+3. Install the ND2-tools package:
+    ```
+    pip install . 
+    ```
+   For development the package can be installed in editable mode
+   using `pip install -e .`.
+   
+## Usage 
+
+See `nd2tools -h`.
+
+

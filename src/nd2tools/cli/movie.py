@@ -172,27 +172,27 @@ def write_video_greyscale(file_prefix, images, fps, width, height,
 
             # Crop image
             x1, x2, y1, y2 = frame_pos
-            image = image[y1:y2, x1:x2]
+            image_crop = image[y1:y2, x1:x2]
 
             # convert 16bit to 8bit
-            if image.dtype == "uint16":
+            if image_crop.dtype == "uint16":
                 if scaling_min_max.mode == "continuous" or scaling_min_max.mode == "current":
                     logger.info(f"frame: {frame_number}")
                     scaling_min_max.update(image_cropped)
-                image = map_uint16_to_uint8(image,
+                image_crop = map_uint16_to_uint8(image_crop,
                                             lower_bound=scaling_min_max.min_current,
                                             upper_bound=scaling_min_max.max_current)
 
             # Add text to frames
-            image = gray_to_color(image)  # Convert to color (copy to 3 channels)
-            image = add_text_to_image(image, text=f"t: {acquisition_time}",
+            image_crop = gray_to_color(image_crop)  # Convert to color (copy to 3 channels)
+            image_crop = add_text_to_image(image_crop, text=f"t: {acquisition_time}",
                                       background=True)
 
             # TODO: Add scalebar functionality
-            #image = add_scalebar(image, pixel_size=2, magnification=10)
+            #image_crop = add_scalebar(image_crop, pixel_size=2, magnification=10)
 
-            # Write image
-            open_video_files.dictionary[frame_pos].write(image)
+            # Write image_crop
+            open_video_files.dictionary[frame_pos].write(image_crop)
 
         # Option: --clip-end
         if frame_number >= last_frame:
