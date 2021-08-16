@@ -3,12 +3,15 @@ from pathlib import Path
 import sys
 import numpy as np
 from collections import Counter
+import logging
 
 if sys.stderr.isatty():
     from tqdm import tqdm
 else:
     def tqdm(iterable, **kwargs):
         return iterable
+
+logger = logging.getLogger(__name__)
 
 
 def is_1_2(s, t):
@@ -89,6 +92,31 @@ def map_uint16_to_uint8(img, lower_bound=None, upper_bound=None):
     return lut[img].astype(np.uint8)
 
 
+def generate_filename(raw_name, metadata=False):
+    name, format = adjust_for_file_extension(raw_name)
+
+    if metadata:
+        output = f"{name}.{metadata}.{format}"
+    else:
+        output = f"{name}.{format}"
+
+    return output
+
+
+def adjust_for_file_extension(filename, default_format="mp4",
+                              accepted_extensions=("mp4", "MP4")):
+    # No extension
+    if "." not in filename:
+        return filename, default_format
+
+    # Check extension is accepted (otherwise adds default)
+    name, format = filename.rsplit(".", 1)
+    if format not in accepted_extensions:
+        return filename, default_format
+    else:
+        return name, format
+
+
 class Summary(Counter):
 
     def print_stats(self, name=None, value_width=15, print_to=sys.stderr):
@@ -121,6 +149,9 @@ class Summary(Counter):
 
 
 class ImageCoordinates:
+
+    # TODO: Update comments
+
     """
     x1,y2 ----------- x2,y2
       |                 |
@@ -132,20 +163,28 @@ class ImageCoordinates:
     """
 
     def __init__(self, x1, x2, y1, y2):
-        # Never changing
-        self.original_x1 = x1
-        self.original_x2 = x2
-        self.original_y1 = y1
-        self.original_y2 = y2
+        self.original_x = range(x1, x2 + 1, x2 - x1)
+        self.original_y = range(y1, y2 + 1, y2 - y1)
+        self.x = self.original_x
+        self.y = self.original_y
 
-        # Cartesian coordinates
-        self.x1 = self.original_x1
-        self.x2 = self.original_x2
-        self.y1 = self.original_y1
-        self.y2 = self.original_y2
+    def x1(self):
+        return self.x[0]
 
-        # Numpy conversions
-        self._update_numpy_coorinates()
+    def x2(self):
+        return self.x[-1]
+
+    def y1(self):
+        return self.y[0]
+
+    def y2(self):
+        return self.y[-1]
+
+    def frame_width(self):
+        return self.x[1] - self.x[0]
+
+    def frame_height(self):
+        return self.y[1] - self.y[0]
 
     def cut_out(self, x1, x2, y1, y2):
         """
@@ -168,11 +207,8 @@ class ImageCoordinates:
          + ------- + --------------- + ------- +
 
         """
-        self.x1 = x1
-        self.x2 = x2
-        self.y1 = y1
-        self.y2 = y2
-        self._update_numpy_coorinates()
+
+        self._set_xy(x1, x2, y1, y2)
 
     def trim(self, left, right, bottom, top):
         """
@@ -199,13 +235,14 @@ class ImageCoordinates:
          + ------- + --------------- + ------- +     -+
 
         """
-        self.x1 += left
-        self.x2 -= right
-        self.y1 += bottom
-        self.y2 -= top
-        self._update_numpy_coorinates()
 
-    # TODO: Add possiblity to keep x/y
+        x1 = self.x1() + left
+        x2 = self.x2() - right
+        y1 = self.y1() + bottom
+        y2 = self.y2() - top
+
+        self._set_xy(x1, x2, y1, y2)
+
     def split(self, x_pieces, y_pieces, x_keep=0, y_keep=0):
         """
         Splits frame into fractions and keeps one of them
@@ -232,38 +269,44 @@ class ImageCoordinates:
        x1,y1 ------------ x2,y1 -------------- +     -+
 
         """
-        x_chunk = int(self.width() / x_pieces)
-        y_chunk = int(self.height() / y_pieces)
-        self.x1 += x_keep * x_chunk
-        self.x2 = self.x1 + x_chunk
-        self.y1 += y_keep * y_chunk
-        self.y2 = self.y1 + y_chunk
-        self._update_numpy_coorinates()
 
-    def width(self):
-        return self.x2 - self.x1
+        x1 = self.x1()
+        x2 = self.x2()
+        y1 = self.x1()
+        y2 = self.x2()
 
-    def height(self):
-        return self.y2 - self.y1
+        y_chunk = int(self.frame_height() / y_pieces)
+        x_chunk = int(self.frame_width() / x_pieces)
 
-    def _update_numpy_coorinates(self):
+        self._set_xy(x1, x2, y1, y2, x_chunk, y_chunk, x_keep, y_keep)
+
+    def frames(self):
         """
-        Run after making any modifications to self.x1, self.x2, self.y1 or self.y2
-
-        Numpy has an inverted y-scale compared to cartesian coordinates, meaning a cut
-        starting at (x,y) = (0,0) cuts the top right corner instead of the bottom left.
-
-        Cartesian               Numpy
-
-           ^                       |      x
-         y |                    -- + ------->
-           |  IMAGE                |
-           |                       |  IMAGE
-        -- + ------->            y |
-           |       x               v
-
+        [(x1, x2, y1, y2), ...]
         """
-        self.np_y1 = self.original_y2 - self.y2
-        self.np_y2 = self.original_y2 - self.y1
-        self.np_x1 = self.x1
-        self.np_x2 = self.x2
+        frames = list()
+        for j, x1 in enumerate(self.x[:-1]):
+            for i, y1 in enumerate(self.y[:-1]):
+                x_tuple = x1, self.x[j + 1]
+                y_tuple = y1, self.y[i + 1]
+                frame = x_tuple + y_tuple
+                frames.append(frame)
+        return frames
+
+    def _set_xy(self, x1, x2, y1, y2, x_chunk=None, y_chunk=None, x_keep=0, y_keep=0):
+
+        # x
+        if not x_chunk:
+            x_chunk = x2 - x1
+        if x_keep <= -1:
+            self.x = range(x1, x2 + 1, x_chunk)
+        else:
+            self.x = range(x1, x2 + 1, x_chunk)[x_keep:x_keep + 2]
+
+        # y
+        if not y_chunk:
+            y_chunk = y2 - y1
+        if y_keep <= -1:
+            self.y = range(y1, y2 + 1, y_chunk)
+        else:
+            self.y = range(y1, y2 + 1, y_chunk)[y_keep:y_keep + 2]

@@ -1,18 +1,108 @@
-# Whenever this file is updated, you need to run misc/condalock.sh to create
-# the environment.lock.yml file.
-name: nd2tools
 channels:
   - conda-forge
   - bioconda
   - defaults
 dependencies:
-  - conda-forge::python=3.8
-  - conda-forge::tqdm
-  - conda-forge::ruamel.yaml
-  - conda-forge::importlib_resources
+  - blosc
+  - brotli
+  - brotli-bin
+  - brunsli
+  - bzip2
+  - c-ares
+  - ca-certificates
+  - certifi
+  - cfitsio
+  - charls
+  - cycler
+  - ffmpeg
+  - freetype
+  - gettext
+  - giflib
+  - gmp=6.2.1
+  - gnutls=3.6.13
+  - imagecodecs
   - imageio
+  - imageio-ffmpeg
+  - importlib_resources
+  - jbig=2.1
+  - jinja2
+  - joblib
+  - jpeg
+  - jxrlib
+  - kiwisolver
+  - krb5
+  - lame
+  - lcms2
+  - lerc
+  - libaec
+  - libblas
+  - libbrotlicommon
+  - libbrotlidec
+  - libbrotlienc
+  - libcblas
+  - libcurl
+  - libcxx
+  - libdeflate
+  - libedit
+  - libev
+  - libffi
+  - libgfortran
+  - libgfortran5
+  - libiconv
+  - liblapack
+  - libnghttp2
+  - libopenblas
+  - libpng
+  - libssh2
+  - libtiff
+  - libwebp-base
+  - libzopfli
+  - llvm-openmp
+  - lz4-c=1.9.3
+  - markupsafe
   - matplotlib
+  - matplotlib-base
+  - ncurses
+  - nd2reader
+  - nettle
+  - numpy
+  - olefile
+  - openh264
+  - openjpeg
+  - openssl
+  - pillow
+  - pims
   - pip
+  - pyparsing
+  - python=3.7
+  - python-dateutil
+  - python_abi
+  - readline
+  - ruamel.yaml
+  - ruamel.yaml.clib
+  - scikit-learn
+  - scipy
+  - setuptools
+  - six=1.16.0
+  - slicerator
+  - snappy
+  - sqlite
+  - threadpoolctl
+  - tifffile
+  - tk=8.6.10
+  - tornado
+  - tqdm
+  - wheel
+  - x264
+  - xmltodict
+  - xz
+  - zfp
+  - zipp
+  - zlib
+  - zstd
   - pip:
-      - matplotlib-scalebar
-      - pyqt5
+    - matplotlib-scalebar
+    - opencv-python
+    - pyqt5
+    - pyqt5-qt5
+    - pyqt5-sip

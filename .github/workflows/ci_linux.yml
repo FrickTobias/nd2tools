@@ -1,4 +1,4 @@
-name: CI
+name: CI Linux
 
 on:
   pull_request:
@@ -14,24 +14,25 @@ on:
 jobs:
   run:
     name: Run submodules
-    timeout-minutes: 15
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ ubuntu-latest ]
+    timeout-minutes: 10
+    runs-on: macos-latest
+    defaults:
+      run:
+        shell: bash -l {0}
     steps:
       - uses: actions/checkout@v2
-      - name: Add conda to PATH
-        if: runner.os == 'macOS'
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          activate-environment: testenv
+          auto-update-conda: false
+          environment-file: environment.linux.lock.yml
+      - name: Install and check env
         run: |
-          sudo chown -R $USER /usr/local/miniconda/  # workaround for problem in macOS image
-          echo ::add-path::$CONDA/condabin
-      - name: Create Conda environment
-        run: |
+          conda activate testenv
+          pip install .[dev]
           conda info
-          envfile=environment.$(echo ${{ runner.os }} | tr A-Z a-z | sed 's|macos|osx|').lock.yml
-          conda env create -n testenv -f ${envfile}
-          conda install -n testenv flake8 pytest
+          conda list
+          nd2tools --version
       - name: Run flake8
         run: |
           source $CONDA/etc/profile.d/conda.sh
