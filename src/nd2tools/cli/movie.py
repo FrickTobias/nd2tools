@@ -9,6 +9,8 @@ import cv2
 import numpy as np
 from tqdm import tqdm
 import seaborn as sns
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 from nd2reader import ND2Reader
 
@@ -168,6 +170,7 @@ def write_video_greyscale(file_prefix, images, fps, width, height,
 
         # Split image and writes to appropriate files
         acquisition_time = timesteps[frame_number]
+        ims = list()
         for frame_pos in frame_pos_list:
 
             # Crop image
@@ -180,16 +183,19 @@ def write_video_greyscale(file_prefix, images, fps, width, height,
                     logger.info(f"frame: {frame_number}")
                     scaling_min_max.update(image_cropped)
                 image_crop = map_uint16_to_uint8(image_crop,
-                                            lower_bound=scaling_min_max.min_current,
-                                            upper_bound=scaling_min_max.max_current)
+                                                 lower_bound=scaling_min_max.min_current,
+                                                 upper_bound=scaling_min_max.max_current)
 
             # Add text to frames
-            image_crop = gray_to_color(image_crop)  # Convert to color (copy to 3 channels)
+            image_crop = gray_to_color(
+                image_crop)  # Convert to color (copy to 3 channels)
             image_crop = add_text_to_image(image_crop, text=f"t: {acquisition_time}",
-                                      background=True)
+                                           background=True)
 
             # TODO: Add scalebar functionality
-            #image_crop = add_scalebar(image_crop, pixel_size=2, magnification=10)
+            im = add_scalebar(image_crop, pixel_size=2, magnification=10)
+            ims.append([im])
+
 
             # Write image_crop
             open_video_files.dictionary[frame_pos].write(image_crop)
@@ -198,15 +204,92 @@ def write_video_greyscale(file_prefix, images, fps, width, height,
         if frame_number >= last_frame:
             break
 
+    ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True,
+                                    repeat_delay=1000)
+
     # Close files
     open_video_files.close()
 
 
-
-
 ## TODO: Get this funcional
-#def add_scalebar(image, pixel_size, magnification):
-#    #import matplotlib.pyplot as plt
+def add_scalebar(image, pixel_size, magnification):
+    # Get screen pixel density
+    dpi = get_screen_dpi()
+
+    width, height, channels = image.shape
+
+    # Load image and extract
+    # im = RGB_to_plt(image)
+    # plt.axis("off")
+
+    # Compensate size of pixel for objective magnification
+    pixel_size_real = pixel_size / magnification
+
+    # Create subplot
+    # Specifies figsize and dpi in order to keep original resolution
+    fig, ax = plt.subplots(figsize=(height / dpi, width / dpi), dpi=dpi)
+    ax.axis("off")
+
+
+    # ax.imshow(im, cmap="gray")
+
+    # Scale bar settings
+    # if big:
+    #    scalebar_width = 0.015
+    #    scalebar_length = 0.3
+    #    font = {
+    #        "size": "40"
+    #    }
+    # else:
+    scalebar_width = 0.01
+    scalebar_length = 0.2
+    font = {}
+
+    # Create scale barnan
+    from matplotlib_scalebar.scalebar import ScaleBar
+    scalebar = ScaleBar(pixel_size_real, "um", frameon=False,
+                        length_fraction=scalebar_length,
+                        width_fraction=scalebar_width, font_properties=font)
+    ax.add_artist(scalebar)
+
+
+
+    im = plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), animated=True)
+
+    # ani.save('dynamic_images.mp4')
+
+    # To save this second animation with some metadata, use the following command:
+    # im_ani.save('im.mp4', metadata={'artist':'Guido'})
+
+
+    # plt.savefig(output, format="jpeg", bbox_inches='tight', pad_inches=0)
+    return im
+
+def update_line(num, data, line):
+    line.set_data(data[..., :num])
+    return line
+
+
+def get_screen_dpi():
+    # Get dpi
+    import sys
+    from PyQt5.QtWidgets import QApplication
+    app = QApplication(sys.argv)
+    screen = app.screens()[0]
+    dpi = screen.physicalDotsPerInch()
+    app.quit()
+    return dpi
+
+
+def RGB_to_plt(cv2_image):
+    return
+
+
+def plt_to_RGB():
+    return
+
+
+# #import matplotlib.pyplot as plt
 #    #import matplotlib.cbook as cbook
 #    #from matplotlib_scalebar.scalebar import ScaleBar
 #    #plt.figure()
@@ -276,7 +359,7 @@ def write_video_greyscale(file_prefix, images, fps, width, height,
 #
 #
 ## TODO: Get this funcional
-#def get_screen_dpi():
+# def get_screen_dpi():
 #    # Get dpi
 #    import sys
 #    from PyQt5.QtWidgets import QApplication
