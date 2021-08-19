@@ -8,9 +8,15 @@ import time
 import cv2
 import numpy as np
 from tqdm import tqdm
+from PIL import Image
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import matplotlib
+from matplotlib_scalebar.scalebar import ScaleBar
+
+matplotlib.use(
+    'agg')  # TODO fix this import statement mac thingydoodle and figure out what it does
 
 from nd2reader import ND2Reader
 
@@ -33,6 +39,12 @@ def add_arguments(parser):
     parser.add_argument(
         "-f", "--fps", type=int, default=30,
         help="Frames per second. Default: %(default)s"
+    )
+
+    overlay_options = parser.add_argument_group("overlay options")
+    overlay_options.add_argument(
+        "--scalebar", nargs = 2, metavar=["PIXEL_SIDE_UM", "MAGNIFICATION"],
+        help="Add scalebar to image. PIXEL_WIDTH unit: micro meter."
     )
 
     clipping_options = parser.add_argument_group("clipping arguments")
@@ -96,7 +108,8 @@ def main(args):
                               frame_pos_list=frame_pos_list,
                               conversion_method=args.conversion,
                               scale_conversion=args.scale_conversion,
-                              clip_start=args.clip_start, clip_stop=args.clip_stop)
+                              clip_start=args.clip_start, clip_stop=args.clip_stop,
+                              scalebar=args.scalebar)
         logger.info("Finished")
 
 
@@ -134,7 +147,7 @@ def adjust_frame(image_coordinates, split, keep, cut, trim):
 
 def write_video_greyscale(file_prefix, images, fps, width, height,
                           frame_pos_list, conversion_method="first", scale_conversion=0,
-                          clip_start=0, clip_stop=0):
+                          clip_start=0, clip_stop=0, scalebar = None):
     """
     Writes images to an mp4 video file
     :param file_path: Path to output video, must end with .mp4
@@ -170,7 +183,7 @@ def write_video_greyscale(file_prefix, images, fps, width, height,
 
         # Split image and writes to appropriate files
         acquisition_time = timesteps[frame_number]
-        ims = list()
+        # ims = list()
         for frame_pos in frame_pos_list:
 
             # Crop image
@@ -193,81 +206,83 @@ def write_video_greyscale(file_prefix, images, fps, width, height,
                                            background=True)
 
             # TODO: Add scalebar functionality
-            im = add_scalebar(image_crop, pixel_size=2, magnification=10)
-            ims.append([im])
-
+            if scalebar:
+                pixel_size, magnification = scalebar
+            plt, im = add_scalebar(image_crop, pixel_size=2, magnification=10)
+            im.convert("RGB")
+            im = np.array(im)
 
             # Write image_crop
-            open_video_files.dictionary[frame_pos].write(image_crop)
+            open_video_files.dictionary[frame_pos].write(im)
 
         # Option: --clip-end
         if frame_number >= last_frame:
             break
 
-    ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True,
-                                    repeat_delay=1000)
+    # ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True,
+    #                                repeat_delay=1000)
 
     # Close files
     open_video_files.close()
 
 
-## TODO: Get this funcional
+
+from linetimer import CodeTimer
+
+
+## TODO: Split into build_overlays and merge_overlay_with_image or something (now super slow)
+
 def add_scalebar(image, pixel_size, magnification):
-    # Get screen pixel density
-    dpi = get_screen_dpi()
 
-    width, height, channels = image.shape
+    with CodeTimer("dpi"):
+        # Get screen pixel density
+        dpi = get_screen_dpi()
 
-    # Load image and extract
-    # im = RGB_to_plt(image)
-    # plt.axis("off")
+    with CodeTimer("shape"):
 
-    # Compensate size of pixel for objective magnification
-    pixel_size_real = pixel_size / magnification
+        width, height, channels = image.shape
 
-    # Create subplot
-    # Specifies figsize and dpi in order to keep original resolution
-    fig, ax = plt.subplots(figsize=(height / dpi, width / dpi), dpi=dpi)
-    ax.axis("off")
+    with CodeTimer("px real size"):
 
+        # Compensate size of pixel for objective magnification
+        pixel_size_real = pixel_size / magnification
 
-    # ax.imshow(im, cmap="gray")
+    with CodeTimer("plt subplot"):
 
-    # Scale bar settings
-    # if big:
-    #    scalebar_width = 0.015
-    #    scalebar_length = 0.3
-    #    font = {
-    #        "size": "40"
-    #    }
-    # else:
-    scalebar_width = 0.01
-    scalebar_length = 0.2
-    font = {}
+        # Create subplot. Specifies figsize and dpi in order to keep original resolution
+        fig, ax = plt.subplots(figsize=(height / dpi, width / dpi), dpi=dpi)
 
-    # Create scale barnan
-    from matplotlib_scalebar.scalebar import ScaleBar
-    scalebar = ScaleBar(pixel_size_real, "um", frameon=False,
-                        length_fraction=scalebar_length,
-                        width_fraction=scalebar_width, font_properties=font)
-    ax.add_artist(scalebar)
+    with CodeTimer("ax off"):
 
+        ax.axis("off")
 
+    with CodeTimer("vars"):
 
-    im = plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), animated=True)
+        scalebar_width = 0.01
+        scalebar_length = 0.2
+        font = {}
 
-    # ani.save('dynamic_images.mp4')
+    with CodeTimer("scalebar"):
 
-    # To save this second animation with some metadata, use the following command:
-    # im_ani.save('im.mp4', metadata={'artist':'Guido'})
+        # Create scale bar
+        scalebar = ScaleBar(pixel_size_real, "um", frameon=False,
+                            length_fraction=scalebar_length,
+                            width_fraction=scalebar_width, font_properties=font)
 
+    with CodeTimer("add scalebar"):
 
-    # plt.savefig(output, format="jpeg", bbox_inches='tight', pad_inches=0)
-    return im
+        ax.add_artist(scalebar)
 
-def update_line(num, data, line):
-    line.set_data(data[..., :num])
-    return line
+    with CodeTimer("imshow"):
+
+        im = plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), animated=True)
+
+    with CodeTimer("fig2img"):
+
+        im = fig2img(fig)
+
+    return plt, im
+
 
 
 def get_screen_dpi():
@@ -281,93 +296,47 @@ def get_screen_dpi():
     return dpi
 
 
-def RGB_to_plt(cv2_image):
-    return
+def fig2data(fig):
+    """
+    @brief Convert a Matplotlib figure to a 3D numpy array with RGB channels and return it
+    @param fig a matplotlib figure
+    @return a numpy 3D array of RGB values
+    """
+    # draw the renderer
+    with CodeTimer("canvas draw"):
+        fig.canvas.draw()
+
+    # Get the RGB buffer from the figure
+    with CodeTimer("w, h"):
+        w, h = fig.canvas.get_width_height()
+    with CodeTimer("tostring_rgb"):
+        tmp = fig.canvas.tostring_rgb()
+    with CodeTimer("np fromstring"):
+        buf = np.fromstring(tmp, dtype=np.uint8)
+    with CodeTimer("buf shape"):
+        buf.shape = (w, h, 3)
+
+    # canvas.tostring_argb give pixmap in ARGB mode. Roll the ALPHA channel to have it in RGBA mode
+    with CodeTimer("np roll"):
+        buf = np.roll(buf, 3, axis=2)
+    return buf
 
 
-def plt_to_RGB():
-    return
+#
+# Modified from web-backend postt How to convert a matplotlib figure to a numpy array or a PIL image
+# https://web-backend.icare.univ-lille.fr/tutorials/convert_a_matplotlib_figure
+def fig2img(fig):
+    """
+    @brief Convert a Matplotlib figure to a PIL Image in RGBA format and return it
+    @param fig a matplotlib figure
+    @return a Python Imaging Library ( PIL ) image
+    """
 
-
-# #import matplotlib.pyplot as plt
-#    #import matplotlib.cbook as cbook
-#    #from matplotlib_scalebar.scalebar import ScaleBar
-#    #plt.figure()
-#    #image = plt.imread(cbook.get_sample_data('grace_hopper.png'))
-#    #f = plt.imshow(image)
-#    #scalebar = ScaleBar(0.2)  # 1 pixel = 0.2 meter
-#    #plt.gca().add_artist(scalebar)
-#    #plt.gca().add_artist(scalebar)
-#    #import pdb
-#    #pdb.set_trace()
-#    #return f
-#
-#
-#    #import numpy as np
-#    #col_1 = np.vstack([image, image])
-#    #cv2.imshow("test", col_1)
-#    #cv2.waitKey(0)
-#
-#    from matplotlib_scalebar.scalebar import ScaleBar
-#    import matplotlib as plt
-#    scalebar_width = 0.01
-#    scalebar_length = 0.2
-#    font = {}
-#
-#    # Get screen pixel density
-#    dpi = get_screen_dpi()
-#
-#    # Load image and extract
-#    width, height, channels = image.shape
-#
-#    # Compensate size of pixel for objective magnification
-#    pixel_size_real = pixel_size / magnification
-#
-#    # Create subplot
-#    # Specifies figsize and dpi in order to keep original resolution
-#    fig, ax = plt.pyplot.subplots(figsize=(height / dpi, width / dpi), dpi=dpi)
-#    ax.axis("off")
-#
-#    # Plot image
-#    ax.imshow(image, cmap="gray")
-#
-#    # Create scale barnan
-#    scalebar = ScaleBar(pixel_size_real, "um", frameon=False,
-#                        length_fraction=scalebar_length,
-#                        width_fraction=scalebar_width, font_properties=font)
-#    ax.add_artist(scalebar)
-#    #import pdb
-#    #pdb.set_trace()
-#
-#    from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-#    from matplotlib.figure import Figure
-#
-#    canvas = FigureCanvas(fig)
-#
-#    canvas.draw()  # draw the canvas, cache the renderer
-#    image = np.fromstring(canvas.tostring_rgb(), dtype='uint8')
-#
-#    import pdb
-#    pdb.set_trace()
-#    #plt.pyplot.show()
-#
-#
-#
-#    return image
-#    # Save to out
-#    # plt.pyplot.savefig(output, format="jpeg", bbox_inches='tight', pad_inches=0)
-#
-#
-## TODO: Get this funcional
-# def get_screen_dpi():
-#    # Get dpi
-#    import sys
-#    from PyQt5.QtWidgets import QApplication
-#    app = QApplication(sys.argv)
-#    screen = app.screens()[0]
-#    dpi = screen.physicalDotsPerInch()
-#    app.quit()
-#    return dpi
+    # put the figure pixmap into a numpy array
+    with CodeTimer("fig2data"):
+        buf = fig2data(fig)
+    w, h, d = buf.shape
+    return Image.frombytes("RGB", (w, h), buf.tostring())  # fromstring depreciated, now uses frombytes
 
 
 def get_time(images, format_string="%H:%M:%S"):
