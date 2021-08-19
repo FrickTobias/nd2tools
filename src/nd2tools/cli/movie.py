@@ -43,7 +43,7 @@ def add_arguments(parser):
 
     overlay_options = parser.add_argument_group("overlay options")
     overlay_options.add_argument(
-        "--scalebar", nargs = 2, metavar=["PIXEL_SIDE_UM", "MAGNIFICATION"],
+        "--scalebar", nargs=2, type=float, metavar=["PIXEL_SIDE_UM", "MAGNIFICATION"],
         help="Add scalebar to image. PIXEL_WIDTH unit: micro meter."
     )
 
@@ -147,7 +147,7 @@ def adjust_frame(image_coordinates, split, keep, cut, trim):
 
 def write_video_greyscale(file_prefix, images, fps, width, height,
                           frame_pos_list, conversion_method="first", scale_conversion=0,
-                          clip_start=0, clip_stop=0, scalebar = None):
+                          clip_start=0, clip_stop=0, scalebar=None):
     """
     Writes images to an mp4 video file
     :param file_path: Path to output video, must end with .mp4
@@ -166,6 +166,8 @@ def write_video_greyscale(file_prefix, images, fps, width, height,
     open_video_files = OpenVideoFiles(file_prefix, fps, width, height, frame_pos_list,
                                       is_color=1)
 
+    overlay = build_overlay(width=width, height=height, scalebar=scalebar)
+
     # Writing outputs
     scaling_min_max = ScalingMinMax(mode=conversion_method, scaling=scale_conversion,
                                     images=images)
@@ -178,6 +180,7 @@ def write_video_greyscale(file_prefix, images, fps, width, height,
                  total=last_frame)):
 
         # Option: --clip-start
+        # TODO: Change to for i in images[first_image:last_image]
         if frame_number < first_frame:
             continue
 
@@ -200,20 +203,25 @@ def write_video_greyscale(file_prefix, images, fps, width, height,
                                                  upper_bound=scaling_min_max.max_current)
 
             # Add text to frames
-            image_crop = gray_to_color(
-                image_crop)  # Convert to color (copy to 3 channels)
+            image_crop = gray_to_color(image_crop)
             image_crop = add_text_to_image(image_crop, text=f"t: {acquisition_time}",
                                            background=True)
 
-            # TODO: Add scalebar functionality
-            if scalebar:
-                pixel_size, magnification = scalebar
-            plt, im = add_scalebar(image_crop, pixel_size=2, magnification=10)
-            im.convert("RGB")
-            im = np.array(im)
+            # TODO: Fix overlay RGBA
+            # Combine image with overlay
+            #import pdb
+            #pdb.set_trace()
+
+            image_crop = cv2.cvtColor(image_crop, cv2.COLOR_BGR2BGRA)
+            image_crop = cv2.addWeighted(image_crop, 1, overlay, 1, 0)
+
+            image_crop = cv2.cvtColor(image_crop, cv2.COLOR_BGRA2BGR)
+
+            cv2.imshow("image_crop", image_crop)
+            cv2.waitKey(0)
 
             # Write image_crop
-            open_video_files.dictionary[frame_pos].write(im)
+            open_video_files.dictionary[frame_pos].write(image_crop)
 
         # Option: --clip-end
         if frame_number >= last_frame:
@@ -226,63 +234,47 @@ def write_video_greyscale(file_prefix, images, fps, width, height,
     open_video_files.close()
 
 
+def build_overlay(width, height, scalebar):
+    pixel_size, magnification = scalebar
 
-from linetimer import CodeTimer
+    overlay_plt, overlay_fig, overlay_ax = add_scalebar(width=width, height=height, pixel_size=pixel_size,
+                           magnification=magnification)
 
 
-## TODO: Split into build_overlays and merge_overlay_with_image or something (now super slow)
+    overlay_image = plt_to_cv2(figure=overlay_fig, width=width, height=height)
 
-def add_scalebar(image, pixel_size, magnification):
+    gray = cv2.cvtColor(overlay_image, cv2.COLOR_BGR2GRAY)
+    #import pdb
+    #pdb.set_trace()
+    th, threshed = cv2.threshold(gray, 254, 255, cv2.THRESH_BINARY_INV)
+    threshed = cv2.cvtColor(threshed, cv2.COLOR_GRAY2BGRA)
 
-    with CodeTimer("dpi"):
-        # Get screen pixel density
-        dpi = get_screen_dpi()
+    return threshed
 
-    with CodeTimer("shape"):
+def add_scalebar(width, height, pixel_size, magnification):
+    # Get screen pixel density
+    dpi = get_screen_dpi()
+    # Compensate size of pixel for objective magnification
+    pixel_size_real = pixel_size / magnification
 
-        width, height, channels = image.shape
+    # Create subplot. Specifies figsize and dpi in order to keep original resolution
+    fig, ax = plt.subplots(figsize=(width / dpi, height / dpi), dpi=dpi)
 
-    with CodeTimer("px real size"):
 
-        # Compensate size of pixel for objective magnification
-        pixel_size_real = pixel_size / magnification
+    ax.axis("off")
 
-    with CodeTimer("plt subplot"):
+    scalebar_width = 0.01
+    scalebar_length = 0.2
+    font = {}
 
-        # Create subplot. Specifies figsize and dpi in order to keep original resolution
-        fig, ax = plt.subplots(figsize=(height / dpi, width / dpi), dpi=dpi)
+    # Create scale bar
 
-    with CodeTimer("ax off"):
+    scalebar = ScaleBar(pixel_size_real, "um", frameon=False,
+                        length_fraction=scalebar_length,
+                        width_fraction=scalebar_width, font_properties=font)
+    ax.add_artist(scalebar)
 
-        ax.axis("off")
-
-    with CodeTimer("vars"):
-
-        scalebar_width = 0.01
-        scalebar_length = 0.2
-        font = {}
-
-    with CodeTimer("scalebar"):
-
-        # Create scale bar
-        scalebar = ScaleBar(pixel_size_real, "um", frameon=False,
-                            length_fraction=scalebar_length,
-                            width_fraction=scalebar_width, font_properties=font)
-
-    with CodeTimer("add scalebar"):
-
-        ax.add_artist(scalebar)
-
-    with CodeTimer("imshow"):
-
-        im = plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), animated=True)
-
-    with CodeTimer("fig2img"):
-
-        im = fig2img(fig)
-
-    return plt, im
-
+    return plt, fig, ax
 
 
 def get_screen_dpi():
@@ -296,47 +288,34 @@ def get_screen_dpi():
     return dpi
 
 
-def fig2data(fig):
+def plt_to_cv2(figure, width, height):
     """
+    @brief Convert a Matplotlib figure to a PIL Image in RGBA format and return it
+    @param fig a matplotlib figure
+    @return a Python Imaging Library ( PIL ) image
+
     @brief Convert a Matplotlib figure to a 3D numpy array with RGB channels and return it
     @param fig a matplotlib figure
     @return a numpy 3D array of RGB values
     """
     # draw the renderer
-    with CodeTimer("canvas draw"):
-        fig.canvas.draw()
+    figure.canvas.draw()
+    width, height = figure.canvas.get_width_height()
 
     # Get the RGB buffer from the figure
-    with CodeTimer("w, h"):
-        w, h = fig.canvas.get_width_height()
-    with CodeTimer("tostring_rgb"):
-        tmp = fig.canvas.tostring_rgb()
-    with CodeTimer("np fromstring"):
-        buf = np.fromstring(tmp, dtype=np.uint8)
-    with CodeTimer("buf shape"):
-        buf.shape = (w, h, 3)
+    tmp = figure.canvas.tostring_argb()
+    buf = np.fromstring(tmp, dtype=np.uint8)
+    buf.shape = (height, width, 4)
 
-    # canvas.tostring_argb give pixmap in ARGB mode. Roll the ALPHA channel to have it in RGBA mode
-    with CodeTimer("np roll"):
-        buf = np.roll(buf, 3, axis=2)
-    return buf
+    # canvas.tostring_argb give pixmap in RGB mode. Roll the ALPHA channel to have it in RGBA mode
+    buf = np.roll(buf, 3, axis=2)
+
+    image_cv2 = Image.frombytes("RGBA", (width, height), buf.tostring())
 
 
-#
-# Modified from web-backend postt How to convert a matplotlib figure to a numpy array or a PIL image
-# https://web-backend.icare.univ-lille.fr/tutorials/convert_a_matplotlib_figure
-def fig2img(fig):
-    """
-    @brief Convert a Matplotlib figure to a PIL Image in RGBA format and return it
-    @param fig a matplotlib figure
-    @return a Python Imaging Library ( PIL ) image
-    """
-
-    # put the figure pixmap into a numpy array
-    with CodeTimer("fig2data"):
-        buf = fig2data(fig)
-    w, h, d = buf.shape
-    return Image.frombytes("RGB", (w, h), buf.tostring())  # fromstring depreciated, now uses frombytes
+    image_cv2.convert("RGBA")
+    image_cv2 = np.array(image_cv2)
+    return image_cv2
 
 
 def get_time(images, format_string="%H:%M:%S"):
