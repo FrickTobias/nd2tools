@@ -11,12 +11,8 @@ from tqdm import tqdm
 from PIL import Image
 import seaborn as sns
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 import matplotlib
 from matplotlib_scalebar.scalebar import ScaleBar
-
-matplotlib.use(
-    'agg')  # TODO fix this import statement mac thingydoodle and figure out what it does
 
 from nd2reader import ND2Reader
 
@@ -25,6 +21,11 @@ from nd2tools.utils import map_uint16_to_uint8
 from nd2tools.utils import generate_filename
 
 logger = logging.getLogger(__name__)
+
+#
+# Non-GUI matplotlib backend for solving AttributeError: 'FigureCanvasMac' object has no attribute 'renderer'
+# Comment out to use plt.show()
+matplotlib.use('agg')
 
 
 def add_arguments(parser):
@@ -242,7 +243,6 @@ def build_overlay(width, height, scalebar):
     return overlay_image
 
 
-# TODO: Fix position and make sure it is correct
 def add_scalebar(width, height, pixel_size, magnification):
     # Get screen pixel density
     dpi = get_screen_dpi()
@@ -264,12 +264,23 @@ def add_scalebar(width, height, pixel_size, magnification):
         "size": "25"
     }
 
-    # Create scale bar
 
+    # TODO: Set this outside of this function
+    color = sns.color_palette("gist_ncar_r")[2]
+    #color = [(1 - x) for x in color]
+    #print(color)
+    #cmap = matplotlib.colors.ListedColormap(color)
+    #print(cmap)
+    #text_color = [(1 - x) for x in color_info]
+    #sns.set_palette("gist_ncar_r")
+    #import pdb
+    #pdb.set_trace()
+
+    # Create scale bar
     scalebar = ScaleBar(pixel_size_real, "um", frameon=False,
                         length_fraction=scalebar_length,
                         width_fraction=scalebar_width, font_properties=font,
-                        location="upper right", border_pad=2.5)
+                        location="upper right", border_pad=2.5, color=color)
     ax.add_artist(scalebar)
 
     return plt, fig, ax
@@ -297,6 +308,7 @@ def plt_to_cv2(figure, width, height):
     @return a numpy 3D array of RGB values
     """
     # draw the renderer
+
     figure.canvas.draw()
     width, height = figure.canvas.get_width_height()
 
@@ -315,11 +327,8 @@ def plt_to_cv2(figure, width, height):
     return image_cv2
 
 
-# TODO: Fix color inversion issues & add color functionality
 def remove_background(image):
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    th, threshed = cv2.threshold(gray, 254, 255, cv2.THRESH_BINARY_INV)
-    image = cv2.cvtColor(threshed, cv2.COLOR_GRAY2BGRA)
+    _, image = cv2.threshold(image, 254, 255, cv2.THRESH_BINARY_INV)
     return image
 
 
@@ -357,7 +366,7 @@ def add_text_to_image(image, text, text_pos=(50, 50), font_size=1, bold=False,
 
     # Color
     color_info = sns.color_palette("gist_ncar_r")[1]
-    text_color = [(1 - x) * 255 for x in color_info]
+    text_color = [ (1 - x) * 255 for x in color_info]
 
     # Add black box
     if background:
