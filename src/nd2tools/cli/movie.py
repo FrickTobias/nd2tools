@@ -207,18 +207,11 @@ def write_video_greyscale(file_prefix, images, fps, width, height,
             image_crop = add_text_to_image(image_crop, text=f"t: {acquisition_time}",
                                            background=True)
 
-            # TODO: Fix overlay RGBA
-            # Combine image with overlay
-            #import pdb
-            #pdb.set_trace()
-
             image_crop = cv2.cvtColor(image_crop, cv2.COLOR_BGR2BGRA)
+
             image_crop = cv2.addWeighted(image_crop, 1, overlay, 1, 0)
 
             image_crop = cv2.cvtColor(image_crop, cv2.COLOR_BGRA2BGR)
-
-            cv2.imshow("image_crop", image_crop)
-            cv2.waitKey(0)
 
             # Write image_crop
             open_video_files.dictionary[frame_pos].write(image_crop)
@@ -237,20 +230,19 @@ def write_video_greyscale(file_prefix, images, fps, width, height,
 def build_overlay(width, height, scalebar):
     pixel_size, magnification = scalebar
 
-    overlay_plt, overlay_fig, overlay_ax = add_scalebar(width=width, height=height, pixel_size=pixel_size,
-                           magnification=magnification)
-
+    overlay_plt, overlay_fig, overlay_ax = add_scalebar(width=width, height=height,
+                                                        pixel_size=pixel_size,
+                                                        magnification=magnification)
 
     overlay_image = plt_to_cv2(figure=overlay_fig, width=width, height=height)
 
-    gray = cv2.cvtColor(overlay_image, cv2.COLOR_BGR2GRAY)
-    #import pdb
-    #pdb.set_trace()
-    th, threshed = cv2.threshold(gray, 254, 255, cv2.THRESH_BINARY_INV)
-    threshed = cv2.cvtColor(threshed, cv2.COLOR_GRAY2BGRA)
+    # remove white background
+    overlay_image = remove_background(overlay_image)
 
-    return threshed
+    return overlay_image
 
+
+# TODO: Fix position and make sure it is correct
 def add_scalebar(width, height, pixel_size, magnification):
     # Get screen pixel density
     dpi = get_screen_dpi()
@@ -260,18 +252,24 @@ def add_scalebar(width, height, pixel_size, magnification):
     # Create subplot. Specifies figsize and dpi in order to keep original resolution
     fig, ax = plt.subplots(figsize=(width / dpi, height / dpi), dpi=dpi)
 
+    # Default behavious in plt is to have space surrounding plot
+    ax = fig.add_axes([0, 0, 1, 1])
 
-    ax.axis("off")
+    # ax.axis("off") will override stretching plot area to fill entire fig space
+    _ = [ax.spines[axis].set_visible(False) for axis in ax.spines.keys()]
 
     scalebar_width = 0.01
-    scalebar_length = 0.2
-    font = {}
+    scalebar_length = 0.1
+    font = {
+        "size": "25"
+    }
 
     # Create scale bar
 
     scalebar = ScaleBar(pixel_size_real, "um", frameon=False,
                         length_fraction=scalebar_length,
-                        width_fraction=scalebar_width, font_properties=font)
+                        width_fraction=scalebar_width, font_properties=font,
+                        location="upper right", border_pad=2.5)
     ax.add_artist(scalebar)
 
     return plt, fig, ax
@@ -312,10 +310,17 @@ def plt_to_cv2(figure, width, height):
 
     image_cv2 = Image.frombytes("RGBA", (width, height), buf.tostring())
 
-
     image_cv2.convert("RGBA")
     image_cv2 = np.array(image_cv2)
     return image_cv2
+
+
+# TODO: Fix color inversion issues & add color functionality
+def remove_background(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    th, threshed = cv2.threshold(gray, 254, 255, cv2.THRESH_BINARY_INV)
+    image = cv2.cvtColor(threshed, cv2.COLOR_GRAY2BGRA)
+    return image
 
 
 def get_time(images, format_string="%H:%M:%S"):
