@@ -92,29 +92,29 @@ def map_uint16_to_uint8(img, lower_bound=None, upper_bound=None):
     return lut[img].astype(np.uint8)
 
 
-def generate_filename(raw_name, metadata=False):
-    name, format = adjust_for_file_extension(raw_name)
+def generate_filename(raw_name, metadata=False, format="mp4"):
+    name, extension = adjust_for_file_extension(raw_name, format)
 
     if metadata:
-        output = f"{name}.{metadata}.{format}"
+        output = f"{name}.{metadata}.{extension}"
     else:
-        output = f"{name}.{format}"
+        output = f"{name}.{extension}"
 
     return output
 
 
-def adjust_for_file_extension(filename, default_format="mp4",
-                              accepted_extensions=("mp4", "MP4")):
+def adjust_for_file_extension(filename, format="mp4"):
     # No extension
     if "." not in filename:
-        return filename, default_format
+        return filename, format
 
     # Check extension is accepted (otherwise adds default)
-    name, format = filename.rsplit(".", 1)
-    if format not in accepted_extensions:
-        return filename, default_format
+    # TODO: Change to match statement
+    name, extension = filename.rsplit(".", 1)
+    if extension != format:
+        return filename, format
     else:
-        return name, format
+        return name, extension
 
 
 class Summary(Counter):
