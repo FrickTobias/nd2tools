@@ -29,3 +29,25 @@ ND2 image handling
 ## Usage 
 
 See `nd2tools -h`.
+
+## Examples
+
+Make timelapse
+```
+nd2tools movie cells.nd2 timelapse.mp4
+```
+
+Convert to normal image file
+```
+nd2tools image cells.nd2 image.png
+```
+
+View an image
+```
+nd2tools display cells.nd2 
+```
+
+Cropping images (replace `[display|image|movie]` with one of them without `[]` or `|`)
+```
+nd2tools [display|image|movie] cells.nd2 output --split 4 4 --keep 0 0
+```
