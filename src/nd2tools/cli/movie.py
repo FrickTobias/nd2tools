@@ -1,5 +1,5 @@
 """
-Converts images to MP4 movies
+Writes mp4 videos from nd2 files
 """
 
 import pathlib

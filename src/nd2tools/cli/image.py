@@ -1,5 +1,5 @@
 """
-Writes images from ND2 files
+Writes png images from nd2 files
 """
 
 import matplotlib.pyplot as plt
