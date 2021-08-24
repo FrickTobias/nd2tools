@@ -31,7 +31,7 @@ ND2 image handling
 
 3. Install the ND2-tools package:
     ```
-    pip install . 
+    pip install nd2tools
     ```
    
 ## Usage 
