@@ -21,6 +21,9 @@ from nd2reader import ND2Reader
 from nd2tools.utils import ImageCoordinates
 from nd2tools.utils import map_uint16_to_uint8
 from nd2tools.utils import generate_filename
+from nd2tools.utils import ScalingMinMax
+from nd2tools.utils import add_global_args
+from nd2tools.utils import get_screen_dpi
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +34,7 @@ matplotlib.use('agg')
 
 
 def add_arguments(parser):
+    add_global_args(parser)
     parser.add_argument(
         "input", type=pathlib.Path,
         help="Input PNG image"
@@ -64,29 +68,6 @@ def add_arguments(parser):
         help="Remove N images from end."
     )
 
-    cropping_options = parser.add_argument_group("cropping arguments")
-    cropping_options.add_argument(
-        "--cut", nargs=4, type=int,
-        metavar=("X1", "X2", "Y1", "Y2"),
-        help="Cut out rectangle defined by x1,y1 and x2,y2. By numpy convention 0,0 is "
-             "top left pixel and y axis points down"
-    )
-    cropping_options.add_argument(
-        "--trim", nargs=4, type=int,
-        metavar=("LEFT", "RIGHT", "TOP", "BOTTOM"),
-        help="Trim images [pixels]."
-    )
-    cropping_options.add_argument(
-        "--split", type=int, nargs=2, metavar=("X_PIECES", "Y_PIECES"),
-        help="Split images into a X_PIECES by Y_PIECES grid. See --keep for which "
-             "piece(s) to save."
-    )
-    cropping_options.add_argument(
-        "--keep", nargs=2, default=["1", "1"], metavar=("X_PIECE", "Y_PIECE"),
-        help="Specify which piece to keep. Use 0 to keep all and save to "
-             "OUTPUT.frame-N.mp4. %(default)s."
-    )
-
     conversion_options = parser.add_argument_group("bit conversion arguments")
     conversion_options.add_argument(
         "--conversion", choices=["first", "continuous", "current", "naive"],
@@ -107,16 +88,16 @@ def main(args):
     with ND2Reader(args.input) as images:
         # Adjusting output frame coordinates
         im_xy = ImageCoordinates(x1=0, x2=images.sizes['x'], y1=0, y2=images.sizes['y'])
-        im_xy = adjust_frame(im_xy, args.split, args.keep, args.cut, args.trim)
+        im_xy.adjust_frame(args.split, args.keep, args.cut, args.trim)
 
         frame_pos_list = im_xy.frames()
-        write_video(file_prefix=args.output, images=images, fps=args.fps,
-                    width=im_xy.frame_width(), height=im_xy.frame_height(),
-                    frame_pos_list=frame_pos_list,
-                    conversion_method=args.conversion,
-                    scale_conversion=args.scale_conversion,
-                    clip_start=args.clip_start, clip_stop=args.clip_stop,
-                    scalebar=args.scalebar, magnification=args.magnification)
+        movie(images=images, output=args.output, fps=args.fps,
+              width=im_xy.frame_width(), height=im_xy.frame_height(),
+              frame_pos_list=frame_pos_list,
+              conversion_method=args.conversion,
+              scale_conversion=args.scale_conversion,
+              clip_start=args.clip_start, clip_stop=args.clip_stop,
+              scalebar=args.scalebar, magnification=args.magnification)
         logger.info("Finished")
 
 
@@ -152,9 +133,9 @@ def adjust_frame(image_coordinates, split, keep, cut, trim):
     return image_coordinates
 
 
-def write_video(file_prefix, images, fps, width, height,
-                frame_pos_list, conversion_method="first", scale_conversion=0,
-                clip_start=0, clip_stop=0, scalebar=None, magnification=10):
+def movie(images, output, fps, width, height, frame_pos_list, conversion_method="first",
+          scale_conversion=0, clip_start=0, clip_stop=0, scalebar=None,
+          magnification=10):
     """
     Writes images to an mp4 video file
     :param file_path: Path to output video, must end with .mp4
@@ -173,7 +154,7 @@ def write_video(file_prefix, images, fps, width, height,
     # TODO: Move PROCESSSING out of this function
 
     # Opens one file per frame_pos tracks using open_video_files.dict[frame_pos] = writer
-    open_video_files = OpenVideoFiles(file_prefix, fps, width, height, frame_pos_list,
+    open_video_files = OpenVideoFiles(output, fps, width, height, frame_pos_list,
                                       is_color=1)
 
     # TODO: Move to better place
@@ -182,15 +163,13 @@ def write_video(file_prefix, images, fps, width, height,
     # CREATE text instance
     img_txt = Cv2ImageText()
 
-    print(img_txt.color_cv2)
-
     overlay = build_overlay(width=width, height=height, scalebar=scalebar,
                             magnification=magnification, pixel_size=pixel_size,
                             color=img_txt.color_matplotlib)
 
     # Writing outputs
     scaling_min_max = ScalingMinMax(mode=conversion_method, scaling=scale_conversion,
-                                    images=images)
+                                    image=images[0])
     first_frame = clip_start
     last_frame = len(images) - clip_stop
     timesteps = nd2_get_time(images)
@@ -293,14 +272,6 @@ def add_scalebar(width, height, pixel_size, magnification, color):
     ax.add_artist(scalebar)
 
     return plt, fig, ax
-
-
-def get_screen_dpi():
-    app = QApplication(sys.argv)
-    screen = app.screens()[0]
-    dpi = screen.physicalDotsPerInch()
-    app.quit()
-    return dpi
 
 
 def plt_to_cv2(figure, width=None, height=None):
@@ -492,80 +463,3 @@ class OpenVideoFiles:
     def close(self):
         for writer in self.dictionary.values():
             writer.release()
-
-
-class ScalingMinMax:
-    """
-    Tracks min/max values for 16bit to 8bit conversion.
-    """
-
-    def __init__(self, mode, scaling, images):
-        """
-        Usage:
-
-            self.min_current
-            self.max_current
-            self.update(image)
-
-        :param mode: [first, continuous, current, naive]
-        :param scaling: Widens min/max. For 0.2 min = min * 0.8 and max = max * 1.2
-        :param images: PIMS image
-        """
-
-        self.min_current = 65535
-        self.max_current = int()
-
-        self.min_updates = int()
-        self.max_updates = int()
-        self._min_scaling = 1 - scaling
-        self._max_scaling = 1 + scaling
-
-        self.mode = mode
-        if self.mode == "first" or self.mode == "continuous" or self.mode == "current":
-            min_init = np.min(images[0])
-            max_init = np.max(images[0])
-        elif self.mode == "naive":
-            min_init = 0
-            max_init = 65535  # = 16^2 - 1
-
-        self._set_min(min_init)
-        self._set_max(max_init)
-
-    def update(self, image):
-
-        image_min = np.min(image[0])
-        image_max = np.max(image[0])
-
-        if self.mode == "current":
-            self._set_min(image_min)
-            self._set_max(image_max)
-
-        elif self.mode == "continuous":
-            self._keep_lower(image_min)
-            self._keep_higher(image_max)
-
-    def _keep_lower(self, min_new):
-        if min_new < self.min_current:
-            self._set_min(min_new)
-
-    def _keep_higher(self, max_new):
-        if max_new > self.max_current:
-            self._set_max(max_new)
-
-    def _set_min(self, min_new):
-
-        self.raw_min = min_new
-        self.min_current = int(self.raw_min * self._min_scaling)
-
-        logger.info(
-            f"16 bit min = {self.min_current}. Updated {self.min_updates} time(s).")
-        self.min_updates += 1
-
-    def _set_max(self, max_new):
-
-        self.raw_max = max_new
-        self.max_current = int(self.raw_max * self._max_scaling)
-
-        logger.info(
-            f"16 bit max = {self.max_current}. Updated {self.max_updates} time(s).")
-        self.max_updates += 1

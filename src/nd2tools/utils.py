@@ -14,6 +14,31 @@ else:
 logger = logging.getLogger(__name__)
 
 
+def add_global_args(parser):
+    cropping_options = parser.add_argument_group("cropping arguments")
+    cropping_options.add_argument(
+        "--cut", nargs=4, type=int,
+        metavar=("X1", "X2", "Y1", "Y2"),
+        help="Cut out rectangle defined by x1,y1 and x2,y2. By numpy convention 0,0 is "
+             "top left pixel and y axis points down"
+    )
+    cropping_options.add_argument(
+        "--trim", nargs=4, type=int,
+        metavar=("LEFT", "RIGHT", "TOP", "BOTTOM"),
+        help="Trim images [pixels]."
+    )
+    cropping_options.add_argument(
+        "--split", type=int, nargs=2, metavar=("X_PIECES", "Y_PIECES"),
+        help="Split images into a X_PIECES by Y_PIECES grid. See --keep for which "
+             "piece(s) to save."
+    )
+    cropping_options.add_argument(
+        "--keep", nargs=2, metavar=("X_PIECE", "Y_PIECE"),
+        help="Specify which piece to keep. Use 0 to keep all and save to "
+             "OUTPUT.frame-N.mp4."
+    )
+
+
 def is_1_2(s, t):
     """
     Determine whether s and t are identical except for a single character of
@@ -104,6 +129,9 @@ def generate_filename(raw_name, metadata=False, format="mp4"):
 
 
 def adjust_for_file_extension(filename, format="mp4"):
+    # TODO: Change this to standardised method for output path names
+    filename = str(filename)
+
     # No extension
     if "." not in filename:
         return filename, format
@@ -115,6 +143,17 @@ def adjust_for_file_extension(filename, format="mp4"):
         return filename, format
     else:
         return name, extension
+
+
+def get_screen_dpi():
+    # Get dpi
+    import sys
+    from PyQt5.QtWidgets import QApplication
+    app = QApplication(sys.argv)
+    screen = app.screens()[0]
+    dpi = screen.physicalDotsPerInch()
+    app.quit()
+    return dpi
 
 
 class Summary(Counter):
@@ -149,7 +188,6 @@ class Summary(Counter):
 
 
 class ImageCoordinates:
-
     # TODO: Update comments
 
     """
@@ -293,6 +331,35 @@ class ImageCoordinates:
                 frames.append(frame)
         return frames
 
+    def adjust_frame(self, split, keep, cut, trim):
+        """
+        Adjusts xy coordinates of image.
+        :param self: ImageCoordinates instance
+        :param split: Split image into N pieces
+        :param keep: Which piece after after split
+        :param cut: Cut image to (x1, x2, y1, y2)
+        :param trim: Trim (left, right, top, bottom) pixels from image
+        """
+        if split:
+            keep_0_index = [int(xy) - 1 for xy in keep]
+            x, y = keep_0_index
+            self.split(*split, x_keep=x, y_keep=y)
+            logger.info(
+                f"Slicing image into a {split} grid"
+            )
+        if cut:
+            self.cut_out(*cut)
+            logger.info(
+                f"Cutting frames to: x={self.x1()}:{self.x2()}, "
+                f"y={self.y1()}:{self.y2()}"
+            )
+        if trim:
+            self.trim(*trim)
+            logger.info(
+                f"Trimming frames to: x={self.x1()}:{self.x2()}, "
+                f"y={self.y1()}:{self.y2()}"
+            )
+
     def _set_xy(self, x1, x2, y1, y2, x_chunk=None, y_chunk=None, x_keep=0, y_keep=0):
 
         # x
@@ -310,3 +377,80 @@ class ImageCoordinates:
             self.y = range(y1, y2 + 1, y_chunk)
         else:
             self.y = range(y1, y2 + 1, y_chunk)[y_keep:y_keep + 2]
+
+
+class ScalingMinMax:
+    """
+    Tracks min/max values for 16bit to 8bit conversion.
+    """
+
+    def __init__(self, mode, scaling, image):
+        """
+        Usage:
+
+            self.min_current
+            self.max_current
+            self.update(image)
+
+        :param mode: [first, continuous, current, naive]
+        :param scaling: Widens min/max. For 0.2 min = min * 0.8 and max = max * 1.2
+        :param images: PIMS image
+        """
+
+        self.min_current = 65535
+        self.max_current = int()
+
+        self.min_updates = int()
+        self.max_updates = int()
+        self._min_scaling = 1 - scaling
+        self._max_scaling = 1 + scaling
+
+        self.mode = mode
+        if self.mode == "first" or self.mode == "continuous" or self.mode == "current":
+            min_init = np.min(image)
+            max_init = np.max(image)
+        elif self.mode == "naive":
+            min_init = 0
+            max_init = 65535  # = 16^2 - 1
+
+        self._set_min(min_init)
+        self._set_max(max_init)
+
+    def update(self, image):
+
+        image_min = np.min(image[0])
+        image_max = np.max(image[0])
+
+        if self.mode == "current":
+            self._set_min(image_min)
+            self._set_max(image_max)
+
+        elif self.mode == "continuous":
+            self._keep_lower(image_min)
+            self._keep_higher(image_max)
+
+    def _keep_lower(self, min_new):
+        if min_new < self.min_current:
+            self._set_min(min_new)
+
+    def _keep_higher(self, max_new):
+        if max_new > self.max_current:
+            self._set_max(max_new)
+
+    def _set_min(self, min_new):
+
+        self.raw_min = min_new
+        self.min_current = int(self.raw_min * self._min_scaling)
+
+        logger.info(
+            f"16 bit min = {self.min_current}. Updated {self.min_updates} time(s).")
+        self.min_updates += 1
+
+    def _set_max(self, max_new):
+
+        self.raw_max = max_new
+        self.max_current = int(self.raw_max * self._max_scaling)
+
+        logger.info(
+            f"16 bit max = {self.max_current}. Updated {self.max_updates} time(s).")
+        self.max_updates += 1
