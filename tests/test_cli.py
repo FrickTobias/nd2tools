@@ -3,12 +3,16 @@ from pathlib import Path
 # import shutil
 import subprocess
 import sys
+from nd2tools.cli.display import display as ndt_display
+from nd2tools.cli.image import image as ndt_image
+from nd2tools.cli.movie import movie as ndt_movie
 
 # from nd2tools.cli import scalebar
 
-TESTDATA = Path("tests/testdata")
-TESTDATA_IMAGE = TESTDATA / "img.bmp"
-TESTOUT_SCALEBAR = TESTDATA / "img-scalebar.jpeg"
+TESTDATA = Path("test-data")
+TESTDATA_IMAGE = TESTDATA / "z-axis.nd2"
+TEST_OUT_PREFIX = TESTDATA / "test-output"
+DISPLAY_DURATION_MS = 1
 
 
 def test_environment():
@@ -20,19 +24,19 @@ def test_environment():
         subprocess.run(tool.split(" "), stderr=sys.stdout)
 
 
-def test_image():
+def test_image(nd2_image=TESTDATA_IMAGE, img_out=TEST_OUT_PREFIX):
+    ndt_image(input=nd2_image, output=img_out)
+    # Add test
     return
 
 
-def test_movie():
+def test_movie(nd2_image=TESTDATA_IMAGE, movie_out=TEST_OUT_PREFIX):
+    ndt_movie(input=nd2_image, output=movie_out)
+    # Add test
     return
 
 
-def test_display():
+def test_display(nd2_image=TESTDATA_IMAGE, duration=DISPLAY_DURATION_MS):
+    ndt_display(input=nd2_image, duration=duration)
+    # ADD test
     return
-
-
-def test_split():
-    return
-
-    # scalebar.scalebar(TESTDATA_IMAGE, 3.45, 10, TESTOUT_SCALEBAR)

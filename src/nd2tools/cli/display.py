@@ -24,16 +24,16 @@ def add_arguments(parser):
         help="Input PNG image"
     )
     parser.add_argument(
-        "-t", "--time", default=0, type=int,
-        help="Specify time. Default: %(default)s"
+        "-t", "--time", type=int,
+        help="Specify time."
     )
     parser.add_argument(
-        "-v", "--FOV", default=0, type=int,
-        help="Specify field of view. Default: %(default)s"
+        "-v", "--FOV", type=int,
+        help="Specify field of view."
     )
     parser.add_argument(
-        "-z", "--z_pos", default=0, type=int,
-        help="Specify Z position. Default: %(default)s"
+        "-z", "--z_pos", type=int,
+        help="Specify Z position."
     )
     parser.add_argument(
         "--choices", action="store_true",
@@ -48,10 +48,12 @@ def main(args):
         sys.exit()
 
     display(input=args.input, split=args.split, keep=args.keep,
-            cut=args.cut, trim=args.trim, time=args.time, z_pos=args.z_pos, FOV=args.FOV)
+            cut=args.cut, trim=args.trim, time=args.time, z_pos=args.z_pos,
+            FOV=args.FOV)
 
 
-def display(input, split, keep, cut, trim, time, z_pos, FOV):
+def display(input, split=None, keep=None, cut=None, trim=None,
+            time=0, z_pos=0, FOV=0, duration=0):
     with ND2Reader(input) as images:
 
         im_xy = ImageCoordinates(x1=0, x2=images.sizes['x'], y1=0, y2=images.sizes['y'])
@@ -75,16 +77,16 @@ def display(input, split, keep, cut, trim, time, z_pos, FOV):
 
             name = f"t-{time}.z-{z_pos}.v-{FOV}"
 
-            display_image(name, image_crop)
+            display_image(name, image_crop, duration)
 
     logger.info("Finished")
 
 
-def display_image(name, frame):
+def display_image(name, frame, duration=0):
     cv2.imshow(name, frame)
     logger.info(f"Displaying image: {name}")
     logger.info("Push any key to continue.")
-    cv2.waitKey(0)
+    cv2.waitKey(duration)
     logger.info("Closing windows")
     cv2.destroyAllWindows()
 

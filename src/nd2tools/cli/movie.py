@@ -91,13 +91,13 @@ def main(args):
         im_xy.adjust_frame(args.split, args.keep, args.cut, args.trim)
 
         frame_pos_list = im_xy.frames()
-        write_video(file_prefix=args.output, images=images, fps=args.fps,
-                    width=im_xy.frame_width(), height=im_xy.frame_height(),
-                    frame_pos_list=frame_pos_list,
-                    conversion_method=args.conversion,
-                    scale_conversion=args.scale_conversion,
-                    clip_start=args.clip_start, clip_stop=args.clip_stop,
-                    scalebar=args.scalebar, magnification=args.magnification)
+        movie(images=images, output=args.output, fps=args.fps,
+              width=im_xy.frame_width(), height=im_xy.frame_height(),
+              frame_pos_list=frame_pos_list,
+              conversion_method=args.conversion,
+              scale_conversion=args.scale_conversion,
+              clip_start=args.clip_start, clip_stop=args.clip_stop,
+              scalebar=args.scalebar, magnification=args.magnification)
         logger.info("Finished")
 
 
@@ -133,9 +133,9 @@ def adjust_frame(image_coordinates, split, keep, cut, trim):
     return image_coordinates
 
 
-def write_video(file_prefix, images, fps, width, height,
-                frame_pos_list, conversion_method="first", scale_conversion=0,
-                clip_start=0, clip_stop=0, scalebar=None, magnification=10):
+def movie(images, output, fps, width, height, frame_pos_list, conversion_method="first",
+          scale_conversion=0, clip_start=0, clip_stop=0, scalebar=None,
+          magnification=10):
     """
     Writes images to an mp4 video file
     :param file_path: Path to output video, must end with .mp4
@@ -154,7 +154,7 @@ def write_video(file_prefix, images, fps, width, height,
     # TODO: Move PROCESSSING out of this function
 
     # Opens one file per frame_pos tracks using open_video_files.dict[frame_pos] = writer
-    open_video_files = OpenVideoFiles(file_prefix, fps, width, height, frame_pos_list,
+    open_video_files = OpenVideoFiles(output, fps, width, height, frame_pos_list,
                                       is_color=1)
 
     # TODO: Move to better place
@@ -463,4 +463,3 @@ class OpenVideoFiles:
     def close(self):
         for writer in self.dictionary.values():
             writer.release()
-

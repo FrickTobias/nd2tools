@@ -39,7 +39,7 @@ def main(args):
           cut=args.cut, trim=args.trim)
 
 
-def image(input, output, split, keep, cut, trim):
+def image(input, output, split=None, keep=None, cut=None, trim=None):
     with ND2Reader(input) as images:
         im_xy = ImageCoordinates(x1=0, x2=images.sizes['x'], y1=0, y2=images.sizes['y'])
         im_xy.adjust_frame(split, keep, cut, trim)

@@ -33,9 +33,9 @@ def add_global_args(parser):
              "piece(s) to save."
     )
     cropping_options.add_argument(
-        "--keep", nargs=2, default=["1", "1"], metavar=("X_PIECE", "Y_PIECE"),
+        "--keep", nargs=2, metavar=("X_PIECE", "Y_PIECE"),
         help="Specify which piece to keep. Use 0 to keep all and save to "
-             "OUTPUT.frame-N.mp4. %(default)s."
+             "OUTPUT.frame-N.mp4."
     )
 
 
@@ -129,6 +129,9 @@ def generate_filename(raw_name, metadata=False, format="mp4"):
 
 
 def adjust_for_file_extension(filename, format="mp4"):
+    # TODO: Change this to standardised method for output path names
+    filename = str(filename)
+
     # No extension
     if "." not in filename:
         return filename, format
