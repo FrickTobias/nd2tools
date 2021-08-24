@@ -1,14 +1,20 @@
 """
-Converts images to MP4 movies
+Writes mp4 videos from nd2 files
 """
 
 import pathlib
 import logging
 import time
 import cv2
+import sys
 import numpy as np
 from tqdm import tqdm
+from PIL import Image
 import seaborn as sns
+import matplotlib.pyplot as plt
+import matplotlib
+from matplotlib_scalebar.scalebar import ScaleBar
+from PyQt5.QtWidgets import QApplication
 
 from nd2reader import ND2Reader
 
@@ -17,6 +23,11 @@ from nd2tools.utils import map_uint16_to_uint8
 from nd2tools.utils import generate_filename
 
 logger = logging.getLogger(__name__)
+
+#
+# Non-GUI matplotlib backend for solving AttributeError: 'FigureCanvasMac' object has no attribute 'renderer'
+# Comment out to use plt.show()
+matplotlib.use('agg')
 
 
 def add_arguments(parser):
@@ -31,6 +42,16 @@ def add_arguments(parser):
     parser.add_argument(
         "-f", "--fps", type=int, default=30,
         help="Frames per second. Default: %(default)s"
+    )
+
+    overlay_options = parser.add_argument_group("overlay options")
+    overlay_options.add_argument(
+        "-s", "--scalebar", action="store_true",
+        help="Add scalebar to image. See --magnification to set objective magnification."
+    )
+    overlay_options.add_argument(
+        "--magnification", type=float, default=10,
+        help="Objective magnification used at image acquisition. %(default)s"
     )
 
     clipping_options = parser.add_argument_group("clipping arguments")
@@ -89,12 +110,13 @@ def main(args):
         im_xy = adjust_frame(im_xy, args.split, args.keep, args.cut, args.trim)
 
         frame_pos_list = im_xy.frames()
-        write_video_greyscale(file_prefix=args.output, images=images, fps=args.fps,
-                              width=im_xy.frame_width(), height=im_xy.frame_height(),
-                              frame_pos_list=frame_pos_list,
-                              conversion_method=args.conversion,
-                              scale_conversion=args.scale_conversion,
-                              clip_start=args.clip_start, clip_stop=args.clip_stop)
+        write_video(file_prefix=args.output, images=images, fps=args.fps,
+                    width=im_xy.frame_width(), height=im_xy.frame_height(),
+                    frame_pos_list=frame_pos_list,
+                    conversion_method=args.conversion,
+                    scale_conversion=args.scale_conversion,
+                    clip_start=args.clip_start, clip_stop=args.clip_stop,
+                    scalebar=args.scalebar, magnification=args.magnification)
         logger.info("Finished")
 
 
@@ -130,9 +152,9 @@ def adjust_frame(image_coordinates, split, keep, cut, trim):
     return image_coordinates
 
 
-def write_video_greyscale(file_prefix, images, fps, width, height,
-                          frame_pos_list, conversion_method="first", scale_conversion=0,
-                          clip_start=0, clip_stop=0):
+def write_video(file_prefix, images, fps, width, height,
+                frame_pos_list, conversion_method="first", scale_conversion=0,
+                clip_start=0, clip_stop=0, scalebar=None, magnification=10):
     """
     Writes images to an mp4 video file
     :param file_path: Path to output video, must end with .mp4
@@ -145,54 +167,74 @@ def write_video_greyscale(file_prefix, images, fps, width, height,
     :param scale_conversion: Factor to widen min/max for color conversion (0.2 => *1.2/0.8)
     :param clip_start: Start frame number
     :param clip_stop: Stop frame number
+    :param magnification: Objective magnification from image acquisition
     """
+
+    # TODO: Move PROCESSSING out of this function
 
     # Opens one file per frame_pos tracks using open_video_files.dict[frame_pos] = writer
     open_video_files = OpenVideoFiles(file_prefix, fps, width, height, frame_pos_list,
                                       is_color=1)
+
+    # TODO: Move to better place
+    pixel_size = images.metadata["pixel_microns"]
+
+    # CREATE text instance
+    img_txt = Cv2ImageText()
+
+    print(img_txt.color_cv2)
+
+    overlay = build_overlay(width=width, height=height, scalebar=scalebar,
+                            magnification=magnification, pixel_size=pixel_size,
+                            color=img_txt.color_matplotlib)
 
     # Writing outputs
     scaling_min_max = ScalingMinMax(mode=conversion_method, scaling=scale_conversion,
                                     images=images)
     first_frame = clip_start
     last_frame = len(images) - clip_stop
-    timesteps = get_time(images)
-    # timesteps = [datetime(timestep) for timestep in timesteps]
+    timesteps = nd2_get_time(images)
     for frame_number, image in enumerate(
             tqdm(images, desc=f"Writing movie file(s)", unit=" images",
                  total=last_frame)):
 
         # Option: --clip-start
+        # TODO: Change to for i in images[first_image:last_image]
         if frame_number < first_frame:
             continue
 
         # Split image and writes to appropriate files
         acquisition_time = timesteps[frame_number]
+        # ims = list()
         for frame_pos in frame_pos_list:
 
             # Crop image
             x1, x2, y1, y2 = frame_pos
-            image = image[y1:y2, x1:x2]
+            image_crop = image[y1:y2, x1:x2]
 
             # convert 16bit to 8bit
-            if image.dtype == "uint16":
+            if image_crop.dtype == "uint16":
                 if scaling_min_max.mode == "continuous" or scaling_min_max.mode == "current":
                     logger.info(f"frame: {frame_number}")
-                    scaling_min_max.update(image_cropped)
-                image = map_uint16_to_uint8(image,
-                                            lower_bound=scaling_min_max.min_current,
-                                            upper_bound=scaling_min_max.max_current)
+                    scaling_min_max.update(image_crop)
+                image_crop = map_uint16_to_uint8(image_crop,
+                                                 lower_bound=scaling_min_max.min_current,
+                                                 upper_bound=scaling_min_max.max_current)
 
             # Add text to frames
-            image = gray_to_color(image)  # Convert to color (copy to 3 channels)
-            image = add_text_to_image(image, text=f"t: {acquisition_time}",
-                                      background=True)
+            image_crop = cv2_gray_to_color(image_crop)
+            image_crop = cv2_add_text_to_image(image_crop,
+                                               text=f"t: {acquisition_time}",
+                                               background=True, img_txt=img_txt)
 
-            # TODO: Add scalebar functionality
-            #image = add_scalebar(image, pixel_size=2, magnification=10)
+            image_crop = cv2.cvtColor(image_crop, cv2.COLOR_BGR2BGRA)
 
-            # Write image
-            open_video_files.dictionary[frame_pos].write(image)
+            image_crop = cv2.addWeighted(image_crop, 1, overlay, 1, 0)
+
+            image_crop = cv2.cvtColor(image_crop, cv2.COLOR_BGRA2BGR)
+
+            # Write image_crop
+            open_video_files.dictionary[frame_pos].write(image_crop)
 
         # Option: --clip-end
         if frame_number >= last_frame:
@@ -202,92 +244,103 @@ def write_video_greyscale(file_prefix, images, fps, width, height,
     open_video_files.close()
 
 
+# TODO: Change scalebar/magnification thing
+def build_overlay(width, height, scalebar, magnification, pixel_size, color):
+    # magnification = scalebar
+    # print(px_microns)
+    # import pdb
+    # pdb.set_trace()
+
+    overlay_plt, overlay_fig, overlay_ax = add_scalebar(width=width, height=height,
+                                                        pixel_size=pixel_size,
+                                                        magnification=magnification,
+                                                        color=color)
+
+    overlay_image = plt_to_cv2(figure=overlay_fig, width=width, height=height)
+
+    # remove white background
+    overlay_image = cv2_remove_white_background(overlay_image)
+
+    return overlay_image
 
 
-## TODO: Get this funcional
-#def add_scalebar(image, pixel_size, magnification):
-#    #import matplotlib.pyplot as plt
-#    #import matplotlib.cbook as cbook
-#    #from matplotlib_scalebar.scalebar import ScaleBar
-#    #plt.figure()
-#    #image = plt.imread(cbook.get_sample_data('grace_hopper.png'))
-#    #f = plt.imshow(image)
-#    #scalebar = ScaleBar(0.2)  # 1 pixel = 0.2 meter
-#    #plt.gca().add_artist(scalebar)
-#    #plt.gca().add_artist(scalebar)
-#    #import pdb
-#    #pdb.set_trace()
-#    #return f
-#
-#
-#    #import numpy as np
-#    #col_1 = np.vstack([image, image])
-#    #cv2.imshow("test", col_1)
-#    #cv2.waitKey(0)
-#
-#    from matplotlib_scalebar.scalebar import ScaleBar
-#    import matplotlib as plt
-#    scalebar_width = 0.01
-#    scalebar_length = 0.2
-#    font = {}
-#
-#    # Get screen pixel density
-#    dpi = get_screen_dpi()
-#
-#    # Load image and extract
-#    width, height, channels = image.shape
-#
-#    # Compensate size of pixel for objective magnification
-#    pixel_size_real = pixel_size / magnification
-#
-#    # Create subplot
-#    # Specifies figsize and dpi in order to keep original resolution
-#    fig, ax = plt.pyplot.subplots(figsize=(height / dpi, width / dpi), dpi=dpi)
-#    ax.axis("off")
-#
-#    # Plot image
-#    ax.imshow(image, cmap="gray")
-#
-#    # Create scale barnan
-#    scalebar = ScaleBar(pixel_size_real, "um", frameon=False,
-#                        length_fraction=scalebar_length,
-#                        width_fraction=scalebar_width, font_properties=font)
-#    ax.add_artist(scalebar)
-#    #import pdb
-#    #pdb.set_trace()
-#
-#    from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-#    from matplotlib.figure import Figure
-#
-#    canvas = FigureCanvas(fig)
-#
-#    canvas.draw()  # draw the canvas, cache the renderer
-#    image = np.fromstring(canvas.tostring_rgb(), dtype='uint8')
-#
-#    import pdb
-#    pdb.set_trace()
-#    #plt.pyplot.show()
-#
-#
-#
-#    return image
-#    # Save to out
-#    # plt.pyplot.savefig(output, format="jpeg", bbox_inches='tight', pad_inches=0)
-#
-#
-## TODO: Get this funcional
-#def get_screen_dpi():
-#    # Get dpi
-#    import sys
-#    from PyQt5.QtWidgets import QApplication
-#    app = QApplication(sys.argv)
-#    screen = app.screens()[0]
-#    dpi = screen.physicalDotsPerInch()
-#    app.quit()
-#    return dpi
+def add_scalebar(width, height, pixel_size, magnification, color):
+    # Get screen pixel density
+    dpi = get_screen_dpi()
+    # Compensate size of pixel for objective magnification
+    pixel_size_real = pixel_size * magnification
+
+    # Create subplot. Specifies figsize and dpi in order to keep original resolution
+    fig, ax = plt.subplots(figsize=(width / dpi, height / dpi), dpi=dpi)
+
+    # Default behaviour in plt is to have space surrounding plot
+    ax = fig.add_axes([0, 0, 1, 1])
+
+    # ax.axis("off") will override stretching plot area to fill entire fig space
+    _ = [ax.spines[axis].set_visible(False) for axis in ax.spines.keys()]
+
+    scalebar_width = 0.01
+    scalebar_length = 0.1
+    font = {
+        "size": "25"
+    }
+
+    # Create scale bar
+    scalebar = ScaleBar(pixel_size_real, "um", frameon=False,
+                        length_fraction=scalebar_length,
+                        width_fraction=scalebar_width, font_properties=font,
+                        location="upper right", border_pad=2.5, color=color)
+    ax.add_artist(scalebar)
+
+    return plt, fig, ax
 
 
-def get_time(images, format_string="%H:%M:%S"):
+def get_screen_dpi():
+    app = QApplication(sys.argv)
+    screen = app.screens()[0]
+    dpi = screen.physicalDotsPerInch()
+    app.quit()
+    return dpi
+
+
+def plt_to_cv2(figure, width=None, height=None):
+    """
+    Convert matplotlib plot to cv2 image
+
+    :param figure: Matplotlib figure (same as fig, _ from matplotlib.pyplot.subplot())
+    :param width: Width of output [px]. Defaults to width of figure.
+    :param height: Height of output [px]. Defaults to height of figure.
+    :return image_cv2: cv2 image
+    """
+
+    # TODO: Check through all this and check docs!
+
+    # Init
+    figure.canvas.draw()
+    if not width or not width:
+        width, height = figure.canvas.get_width_height()
+
+    # Get the RGB buffer from the figure
+    tmp = figure.canvas.tostring_argb()  # Prep for np conversion
+    buf = np.fromstring(tmp, dtype=np.uint8)  # Store in np array
+    buf.shape = (height, width, 4)  # Set shape of array
+    buf = np.roll(buf, 3, axis=2)  # ARGB => RGBA
+
+    # Convert to cv2 image
+    image_cv2 = Image.frombytes("RGBA", (width, height),
+                                buf.tostring())  # Make cv2 image
+    image_cv2.convert("RGBA")
+    image_cv2 = np.array(image_cv2)
+
+    return image_cv2
+
+
+def cv2_remove_white_background(cv2_image):
+    _, cv2_image = cv2.threshold(cv2_image, 254, 255, cv2.THRESH_BINARY_INV)
+    return cv2_image
+
+
+def nd2_get_time(images, format_string="%H:%M:%S"):
     """
     Extracts time information from nd2 images.
 
@@ -305,53 +358,95 @@ def get_time(images, format_string="%H:%M:%S"):
     return t_string_list
 
 
-# TODO: Do this properly
-def add_text_to_image(image, text, text_pos=(50, 50), font_size=1, bold=False,
-                      box=False, background=False):
+def cv2_add_text_to_image(image, text, img_txt, background=False, padding=23):
     """
-    Adds yellow text to top left of image
+    Add text on cv2 images.
+
+    :param image: cv2 image
+    :param text: text string
+    :param text_pos: xy start pos for text (same as cv2.putText(start_point))
+    :param font_size: See cv2.putText(fontScale)
+    :param bold: Write text in bold
+    :param background: Add black background to text
     """
 
-    # Text
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    if bold:
-        thickness = font_size * 3
-    else:
-        thickness = font_size * 2
+    text_dim, _ = cv2.getTextSize(text, img_txt.font, img_txt.size,
+                                  img_txt.thickness)
 
-    # Color
-    color_info = sns.color_palette("gist_ncar_r")[1]
-    text_color = [(1 - x) * 255 for x in color_info]
-
-    # Add black box
-    if background:
-        text_size, _ = cv2.getTextSize(text, font, font_size, thickness)
-        image, text_pos = add_text_background(image, text_pos, text_size, font_size,
-                                              border=23)
-
+    image, img_txt.pos = cv2_add_text_background(image, img_txt.pos, text_dim,
+                                                 img_txt.size,
+                                                 padding)
     # Add to image
-    cv2.putText(image, text, text_pos, font, font_size, text_color, thickness)
+    cv2.putText(image, text, img_txt.pos, img_txt.font, img_txt.size,
+                img_txt.color_cv2, img_txt.thickness)
     return image
 
 
-# TODO: Do this properly
-def add_text_background(image, pos, text_size, font_size, border=0, color=(0, 0, 0)):
-    # Add box to image
-    box_x, box_y = pos
-    text_w, text_h = text_size
-    box_dimensions = (box_x + text_w + border, box_y + text_h + border)
-    cv2.rectangle(image, pos, box_dimensions, color, -1)
+def cv2_add_text_background(image, pos, text_dim, font_size, padding=0,
+                            color=(0, 0, 0)):
+    """
+    Adds text background box to cv2 images and adjusts text pos accordingly.
+
+    :param image: cv2 image
+    :param pos: xy start pos for text (same as cv2.putText(start_point))
+    :param text_dim : w, h of text area (same as retval, _ from cv2.getTextSize())
+    :param font_size: See cv2.putText(fontScale)
+    :param padding: Adds padding to background box
+    :param color: Color RGB values for box
+    :return image: Image with box
+    :return text_pos: Adjusted xy start pos for text (same as cv2.putText(start_point))
+    """
+    # Add background box for text
+    box_end_pos = cv2_text_box_end_pos(pos, text_dim, padding)
+    cv2.rectangle(image, pos, box_end_pos, color, -1)
 
     # Adjust text pos to middle of box
-    border_offset = int(border / 2)
-    text_pos = (box_x + border_offset, box_y + text_h + font_size - 1 + border_offset)
+    box_x, box_y = pos
+    _, text_h = text_dim
+    padding_offset = int(padding / 2)
+    text_pos = (box_x + padding_offset, box_y + text_h + font_size - 1 + padding_offset)
 
     return image, text_pos
 
 
-def gray_to_color(image):
+def cv2_text_box_end_pos(pos, text_box, border=0):
+    """
+    Calculates end pos for a text box for cv2 images.
+
+    :param pos: Position of text (same as for cv2 image)
+    :param text_box: Size of text (same as for cv2 image)
+    :param border: Outside padding of textbox
+    :return box_end_pos: End xy coordinates for text box (end_point for cv2.rectangel())
+    """
+    box_x, box_y = pos
+    text_w, text_h = text_box
+    box_end_pos = (box_x + text_w + border, box_y + text_h + border)
+    return box_end_pos
+
+
+def cv2_gray_to_color(image):
     gray_as_color = cv2.merge([image, image, image])
     return gray_as_color
+
+
+class Cv2ImageText():
+
+    def __init__(self, font=cv2.FONT_HERSHEY_SIMPLEX, pos=(50, 50),
+                 bold=False, background=False, size=1, padding=23, color=None):
+        self.font = font
+        self.size = size
+        self.pos = pos
+        self.bold = bold
+        if bold:
+            self.thickness = self.size * 3
+        else:
+            self.thickness = self.size * 2
+
+        # Color
+        if not color:
+            color_info = sns.color_palette("gist_ncar_r")[1]
+            self.color_matplotlib = color_info
+            self.color_cv2 = [(1 - x) * 255 for x in color_info]
 
 
 class OpenVideoFiles:

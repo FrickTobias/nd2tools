@@ -1,5 +1,5 @@
 """
-Splits nd2 images into individual images.
+Displays images from nd2 files
 """
 
 import pathlib

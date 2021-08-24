@@ -6,7 +6,8 @@ environment.yml
 pyproject.toml
 setup.cfg
 setup.py
-.github/workflows/ci.yml
+.github/workflows/ci_linux.yml
+.github/workflows/ci_macos.yml
 .idea/.gitignore
 .idea/vcs.xml
 .idea/inspectionProfiles/profiles_settings.xml
@@ -28,6 +29,7 @@ src/nd2tools/cli/__init__.py
 src/nd2tools/cli/crop.py
 src/nd2tools/cli/display.py
 src/nd2tools/cli/extract.py
+src/nd2tools/cli/movie.py
 src/nd2tools/cli/scalebar.py
 src/nd2tools/cli/split.py
 tests/test_cli.py

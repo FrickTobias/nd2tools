@@ -5,6 +5,7 @@ import sys
 import logging
 import pkgutil
 import importlib
+import timeit
 from argparse import ArgumentParser
 
 import nd2tools.cli as cli_package
@@ -67,7 +68,17 @@ def main(commandline_arguments=None) -> int:
         for object_variable, value in vars(args).items():
             sys.stderr.write(f" {object_variable}: {value}\n")
 
+        # Set timer
+        tic = timeit.default_timer()
+        logger.info(f"Starting timer ({module_name})")
+
+        # Run submodule
         module.main(args)
+
+        # Stop timer
+        toc = timeit.default_timer()
+        processing_time = toc-tic
+        logger.info(f"Elapsed time ({module_name}): {round(processing_time, 4)}s")
 
     return 0
 
