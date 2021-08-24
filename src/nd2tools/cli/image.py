@@ -1,5 +1,5 @@
 """
-Adds scalebars to images
+Writes images from ND2 files
 """
 
 import matplotlib.pyplot as plt
@@ -19,12 +19,10 @@ from nd2tools.utils import generate_filename
 logger = logging.getLogger(__name__)
 
 
-# TODO: Change so it assumes one image at the time and reads .png
-# TODO: Aka adapt to nd2tools split
 def add_arguments(parser):
     parser.add_argument(
         "input", type=pathlib.Path,
-        help="Image to add scale bar to."
+        help="Nd2 file"
     )
     parser.add_argument(
         "output",
@@ -55,11 +53,11 @@ def add_arguments(parser):
 
 
 def main(args):
-    scalebar(input=args.input, output=args.output, split=args.split, keep=args.keep,
-             cut=args.cut, trim=args.trim)
+    image(input=args.input, output=args.output, split=args.split, keep=args.keep,
+          cut=args.cut, trim=args.trim)
 
 
-def scalebar(input, output, split, keep, cut, trim):
+def image(input, output, split, keep, cut, trim):
     with ND2Reader(input) as images:
         im_xy = ImageCoordinates(x1=0, x2=images.sizes['x'], y1=0, y2=images.sizes['y'])
         im_xy = adjust_frame(im_xy, split, keep, cut, trim)
