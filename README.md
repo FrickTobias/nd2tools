@@ -21,10 +21,10 @@ ND2 image handling
 
 3. Install the ND2-tools package:
     ```
-    pip install . 
+    pip install nd2tools 
     ```
    For development the package can be installed in editable mode
-   using `pip install -e .`.
+   using `pip install -e nd2tools`.
    
 ## Usage 
 
