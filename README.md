@@ -28,7 +28,7 @@ ND2 image handling
    
 ## Usage 
 
-See `nd2tools -h`.
+See `nd2tools -h` or `nd2tools [display|image|movie] -h` .
 
 ## Examples
 
