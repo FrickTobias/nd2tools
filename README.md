@@ -47,7 +47,7 @@ View an image
 nd2tools display cells.nd2 
 ```
 
-Cropping images (replace `[display|image|movie]` with one of them without `[]` or `|`)
+Cropping images
 ```
 nd2tools [display|image|movie] cells.nd2 output --split 4 4 --keep 0 0
 ```
