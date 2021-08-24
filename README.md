@@ -1,13 +1,22 @@
-[![CI Linux](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_linux.yaml/badge.svg?branch=main&event=schedule)](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_linux.yaml) [![CI MacOS](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_macos.yaml/badge.svg?branch=main&event=schedule)](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_macos.yaml)
+[![CI Linux](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_linux.yaml/badge.svg?branch=main&event=schedule)](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_linux.yaml) 
+[![CI MacOS](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_macos.yaml/badge.svg?branch=main&event=schedule)](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_macos.yaml)
+
+:exclamation:**NB! This is currently under heavy development.**:exclamation:
 
 # ND2-tools
 
 ND2 image handling
 
-- [Install](#install)
+- [Install](#setup)
 - [Usage](#usage)
 
-## Install
+## Setup
+
+### Prerequisites
+
+- [miniconda](https://docs.conda.io/en/latest/miniconda.html)
+
+### Install
 
 #### 1. Clone the ND2-tools github
 ```
@@ -33,7 +42,6 @@ And then install the updated ND2-tools package again (see step [3](#3-install-th
 
 Or install using editable (`pip install -e nd2tools`) mode and you only have to use the 
 `git -C nd2tools pull` command
-
    
 ## Usage 
 
