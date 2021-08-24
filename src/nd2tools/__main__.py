@@ -47,6 +47,7 @@ def main(commandline_arguments=None) -> int:
             description=module.__doc__
         )
         subparser.set_defaults(module=module)
+
         module.add_arguments(subparser)
 
     args = parser.parse_args(commandline_arguments)
@@ -77,7 +78,7 @@ def main(commandline_arguments=None) -> int:
 
         # Stop timer
         toc = timeit.default_timer()
-        processing_time = toc-tic
+        processing_time = toc - tic
         logger.info(f"Elapsed time ({module_name}): {round(processing_time, 4)}s")
 
     return 0

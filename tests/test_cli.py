@@ -20,11 +20,15 @@ def test_environment():
         subprocess.run(tool.split(" "), stderr=sys.stdout)
 
 
-def test_scalebar():
+def test_image():
     return
 
 
-def test_crop():
+def test_movie():
+    return
+
+
+def test_display():
     return
 
 
