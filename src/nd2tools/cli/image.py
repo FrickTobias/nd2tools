@@ -45,7 +45,6 @@ def image(input, output, split=None, keep=None, cut=None, trim=None):
         im_xy.adjust_frame(split, keep, cut, trim)
         frame_pos_list = im_xy.frames()
         scaling_min_max = ScalingMinMax(mode="continuous",
-                                        scaling=1,
                                         image=images[0])
 
         for frame_number, image in enumerate(images):
@@ -60,7 +59,6 @@ def image(input, output, split=None, keep=None, cut=None, trim=None):
                 # convert 16bit to 8bit
                 if image_crop.dtype == "uint16":
                     if scaling_min_max.mode == "continuous" or scaling_min_max.mode == "current":
-                        logger.info(f"frame: {frame_number}")
                         scaling_min_max.update(image_crop)
                     image_crop = map_uint16_to_uint8(image_crop,
                                                      lower_bound=scaling_min_max.min_current,
