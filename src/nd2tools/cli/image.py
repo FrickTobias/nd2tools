@@ -45,6 +45,7 @@ def image(input, output, split=None, keep=None, cut=None, trim=None):
         im_xy.adjust_frame(split, keep, cut, trim)
         frame_pos_list = im_xy.frames()
         scaling_min_max = ScalingMinMax(mode="continuous",
+                                        scaling=0,
                                         image=images[0])
 
         for frame_number, image in enumerate(images):
