@@ -573,7 +573,7 @@ class ScalingMinMax:
     Tracks min/max values for 16bit to 8bit conversion.
     """
 
-    def __init__(self, mode, image, scaling=0,):
+    def __init__(self, mode, image, scaling=0, ):
         """
         Usage:
 
@@ -586,8 +586,8 @@ class ScalingMinMax:
         :param images: PIMS image
         """
 
-        self.min_current = 65535 # Just needs to be >= first value so it gets updated
-        self.max_current = int() # Just needs to be <= first value so it gets updated
+        self.min_current = 65535  # Just needs to be >= first value so it gets updated
+        self.max_current = int()  # Just needs to be <= first value so it gets updated
 
         self.min_updates = int()
         self.max_updates = int()
