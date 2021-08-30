@@ -154,9 +154,10 @@ def movie(images, output, fps, width, height, frame_pos_list, conversion_method=
             # Add text (changes for different images)
             image_crop = cv2_gray_to_color(image_crop)
             image_crop = cv2_add_text_to_image(image_crop, f"t: {acquisition_time}",
-                                               img_txt.font, img_txt.size,
-                                               img_txt.thickness, img_txt.pos,
-                                               img_txt.color_cv2, background=True)
+                                               pos=img_txt.pos, color=img_txt.color_cv2,
+                                               background=True)
+
+            # TODO: Change to cv2 scalebar function (and add to overlay function?)
 
             # Add overlay
             image_crop = cv2.cvtColor(image_crop, cv2.COLOR_BGR2BGRA)

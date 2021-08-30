@@ -186,7 +186,7 @@ def cv2_remove_white_background(cv2_image):
 
 
 def cv2_add_text_to_image(image, text, font=cv2.FONT_HERSHEY_SIMPLEX, size=1, pos=(50, 50),
-                          color=(0, 0, 0), background=False, padding=23):
+                          color=(0, 0, 0), background=None, padding=23):
     """
     Add text on cv2 images.
 
