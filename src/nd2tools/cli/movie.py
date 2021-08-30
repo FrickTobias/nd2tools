@@ -23,6 +23,7 @@ from nd2tools.utils import cv2_build_overlay
 from nd2tools.utils import cv2_remove_white_background
 from nd2tools.utils import plt_to_cv2
 from nd2tools.utils import nd2_get_time
+from nd2tools.utils import add_clipping_options
 
 from nd2tools.utils import ImageCoordinates
 from nd2tools.utils import ScalingMinMax
@@ -38,6 +39,7 @@ matplotlib.use('agg')
 
 def add_arguments(parser):
     add_global_args(parser)
+    add_clipping_options(parser)
     parser.add_argument(
         "input", type=pathlib.Path,
         help="Input PNG image"
@@ -59,16 +61,6 @@ def add_arguments(parser):
     overlay_options.add_argument(
         "--magnification", type=float, default=10,
         help="Objective magnification used at image acquisition. %(default)s"
-    )
-
-    clipping_options = parser.add_argument_group("clipping arguments")
-    clipping_options.add_argument(
-        "--clip-start", type=int, metavar="N", default=0,
-        help="Remove N images from start."
-    )
-    clipping_options.add_argument(
-        "--clip-end", type=int, metavar="N", default=0,
-        help="Remove N images from end."
     )
 
     conversion_options = parser.add_argument_group("bit conversion arguments")
@@ -123,9 +115,6 @@ def movie(images, output, fps, width, height, frame_pos_list, conversion_method=
     """
     # TODO: Move PROCESSSING out of this function
 
-    import pdb
-    pdb.set_trace()
-
     # Opens one file per frame_pos tracks using open_video_files.dict[frame_pos] = writer
     open_video_files = OpenVideoFiles(output, fps, width, height, frame_pos_list,
                                       is_color=1)
@@ -143,7 +132,7 @@ def movie(images, output, fps, width, height, frame_pos_list, conversion_method=
     for frame_number, image in enumerate(
             tqdm(images[first_frame:last_frame], desc=f"Writing movie file(s)",
                  unit=" images",
-                 total=last_frame)):
+                 total=last_frame - first_frame)):
 
         # Split image and writes to appropriate files
         acquisition_time = timesteps[frame_number]

@@ -39,9 +39,21 @@ def add_global_args(parser):
              "piece(s) to save."
     )
     cropping_options.add_argument(
-        "--keep", nargs=2, metavar=("X_PIECE", "Y_PIECE"),
+        "--keep", nargs=2, metavar=("X_PIECE", "Y_PIECE"), default=[1, 1],
         help="Specify which piece to keep. Use 0 to keep all and save to "
              "OUTPUT.frame-N.mp4."
+    )
+
+
+def add_clipping_options(parser):
+    clipping_options = parser.add_argument_group("clipping arguments")
+    clipping_options.add_argument(
+        "--clip-start", type=int, metavar="N", default=0,
+        help="Remove N images from start."
+    )
+    clipping_options.add_argument(
+        "--clip-end", type=int, metavar="N", default=0,
+        help="Remove N images from end."
     )
 
 
@@ -123,6 +135,7 @@ def map_uint16_to_uint8(img, lower_bound=None, upper_bound=None):
     return lut[img].astype(np.uint8)
 
 
+# TODO: Change so no metadata is empty string (now using None)
 def generate_filename(raw_name, metadata=False, format="mp4"):
     name, extension = adjust_for_file_extension(raw_name, format)
 
@@ -172,8 +185,8 @@ def cv2_remove_white_background(cv2_image):
     return cv2_image
 
 
-def cv2_add_text_to_image(image, text, font, size, thickness, pos, color,
-                          background=False, padding=23):
+def cv2_add_text_to_image(image, text, font=cv2.FONT_HERSHEY_SIMPLEX, size=1, pos=(50, 50),
+                          color=(0, 0, 0), background=False, padding=23):
     """
     Add text on cv2 images.
 
@@ -186,6 +199,7 @@ def cv2_add_text_to_image(image, text, font, size, thickness, pos, color,
     """
 
     # Add box
+    thickness = size * 2
     if background:
         text_dim, _ = cv2.getTextSize(text, font, size, thickness)
         image, pos = cv2_add_text_background(image, pos, text_dim, size,
