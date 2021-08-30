@@ -59,7 +59,7 @@ def display(input, split=None, keep=None, cut=None, trim=None,
         im_xy = ImageCoordinates(x1=0, x2=images.sizes['x'], y1=0, y2=images.sizes['y'])
         im_xy.adjust_frame(split, keep, cut, trim)
         frame_pos_list = im_xy.frames()
-        scaling_min_max = ScalingMinMax(mode="continuous", scaling=1, image=images[0])
+        scaling_min_max = ScalingMinMax(mode="continuous", scaling=0, image=images[0])
 
         image = images.get_frame_2D(t=time, z=z_pos, v=FOV)
         # ims = list()
