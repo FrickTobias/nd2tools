@@ -4,6 +4,12 @@ import sys
 import numpy as np
 from collections import Counter
 import logging
+import cv2
+import seaborn as sns
+import time
+from PIL import Image
+import matplotlib.pyplot as plt
+from matplotlib_scalebar.scalebar import ScaleBar
 
 if sys.stderr.isatty():
     from tqdm import tqdm
@@ -33,9 +39,21 @@ def add_global_args(parser):
              "piece(s) to save."
     )
     cropping_options.add_argument(
-        "--keep", nargs=2, metavar=("X_PIECE", "Y_PIECE"),
+        "--keep", nargs=2, metavar=("X_PIECE", "Y_PIECE"), default=[1, 1],
         help="Specify which piece to keep. Use 0 to keep all and save to "
              "OUTPUT.frame-N.mp4."
+    )
+
+
+def add_clipping_options(parser):
+    clipping_options = parser.add_argument_group("clipping arguments")
+    clipping_options.add_argument(
+        "--clip-start", type=int, metavar="N", default=0,
+        help="Remove N images from start."
+    )
+    clipping_options.add_argument(
+        "--clip-end", type=int, metavar="N", default=0,
+        help="Remove N images from end."
     )
 
 
@@ -117,6 +135,7 @@ def map_uint16_to_uint8(img, lower_bound=None, upper_bound=None):
     return lut[img].astype(np.uint8)
 
 
+# TODO: Change so no metadata is empty string (now using None)
 def generate_filename(raw_name, metadata=False, format="mp4"):
     name, extension = adjust_for_file_extension(raw_name, format)
 
@@ -154,6 +173,190 @@ def get_screen_dpi():
     dpi = screen.physicalDotsPerInch()
     app.quit()
     return dpi
+
+
+def cv2_gray_to_color(image):
+    gray_as_color = cv2.merge([image, image, image])
+    return gray_as_color
+
+
+def cv2_remove_white_background(cv2_image):
+    _, cv2_image = cv2.threshold(cv2_image, 254, 255, cv2.THRESH_BINARY_INV)
+    return cv2_image
+
+
+def cv2_add_text_to_image(image, text, font=cv2.FONT_HERSHEY_SIMPLEX, size=1, pos=(50, 50),
+                          color=(0, 0, 0), background=False, padding=23):
+    """
+    Add text on cv2 images.
+
+    :param image: cv2 image
+    :param text: text string
+    :param text_pos: xy start pos for text (same as cv2.putText(start_point))
+    :param font_size: See cv2.putText(fontScale)
+    :param bold: Write text in bold
+    :param background: Add black background to text
+    """
+
+    # Add box
+    thickness = size * 2
+    if background:
+        text_dim, _ = cv2.getTextSize(text, font, size, thickness)
+        image, pos = cv2_add_text_background(image, pos, text_dim, size,
+                                             padding)
+
+    # Add text
+    cv2.putText(image, text, pos, font, size, color, thickness)
+
+    return image
+
+
+def cv2_add_text_background(image, pos, text_dim, font_size, padding=0,
+                            color=(0, 0, 0)):
+    """
+    Adds text background box to cv2 images and adjusts text pos accordingly.
+
+    :param image: cv2 image
+    :param pos: xy start pos for text (same as cv2.putText(start_point))
+    :param text_dim : w, h of text area (same as retval, _ from cv2.getTextSize())
+    :param font_size: See cv2.putText(fontScale)
+    :param padding: Adds padding to background box
+    :param color: Color RGB values for box
+    :return image: Image with box
+    :return text_pos: Adjusted xy start pos for text (same as cv2.putText(start_point))
+    """
+    # Add box to image
+    box_end_pos = cv2_text_box_end_pos(pos, text_dim, padding)
+    cv2.rectangle(image, pos, box_end_pos, color, -1)
+
+    # Calculate text pos adjusted to middle of box
+    box_x, box_y = pos
+    _, text_h = text_dim
+    padding_offset = int(padding / 2)
+    text_pos = (box_x + padding_offset, box_y + text_h + font_size - 1 + padding_offset)
+
+    return image, text_pos
+
+
+def cv2_text_box_end_pos(pos, text_box, border=0):
+    """
+    Calculates end pos for a text box for cv2 images.
+
+    :param pos: Position of text (same as for cv2 image)
+    :param text_box: Size of text (same as for cv2 image)
+    :param border: Outside padding of textbox
+    :return box_end_pos: End xy coordinates for text box (end_point for cv2.rectangel())
+    """
+    box_x, box_y = pos
+    text_w, text_h = text_box
+    box_end_pos = (box_x + text_w + border, box_y + text_h + border)
+    return box_end_pos
+
+
+def nd2_get_time(images, format_string="%H:%M:%S"):
+    """
+    Extracts time information from nd2 images.
+
+    :param images: ImageSequences
+    :return t_tring_list: [t1, t2, t3...]
+    """
+    t_milliseconds_list = images.timesteps
+    t_string_list = list()
+    for t_milliseconds in t_milliseconds_list:
+        t = t_milliseconds / 1000
+        t_instance = time.gmtime(t)
+        t_string = time.strftime(format_string, t_instance)
+        t_string_list.append(t_string)
+
+    return t_string_list
+
+
+# TODO: Change scalebar/magnification thing
+def cv2_build_overlay(width, height, scalebar, magnification, pixel_size, color):
+    plt, fig, ax = plt_build_scalebar(width, height, pixel_size, magnification, color)
+    overlay_image = plt_to_cv2(figure=fig, width=width, height=height)
+    overlay_image = cv2_remove_white_background(overlay_image)
+
+    return overlay_image
+
+
+# TODO: Make this work correctly
+def plt_build_scalebar(width, height, pixel_size, magnification, color,
+                       scalebar_width=0.01, scalebar_length=0.1, font={"size": "25"}):
+    # Get variables
+    dpi = get_screen_dpi()  # Get screen pixel density
+    pixel_size_real = pixel_size / magnification  # Adjust pixel size for magnification
+
+    # Create subplot. Specifies figsize and dpi in order to keep original resolution
+    fig, ax = plt.subplots(figsize=(width / dpi, height / dpi), dpi=dpi)
+
+    # TODO: Check if this stretching is correct
+    ax = fig.add_axes([0, 0, 1, 1])  # Set plot area = image_area (removes axes space)
+    _ = [ax.spines[axis].set_visible(False) for axis in
+         ax.spines.keys()]  # ax.axis("off") will override stretching plot area to fill entire fig space
+
+    # Create scalebar
+    scalebar = ScaleBar(pixel_size_real, "um", frameon=False,
+                        length_fraction=scalebar_length, width_fraction=scalebar_width,
+                        font_properties=font, location="upper right", border_pad=2.5,
+                        color=color)
+
+    # Add scalebar to plot
+    ax.add_artist(scalebar)
+
+    return plt, fig, ax
+
+
+def plt_to_cv2(figure, width=None, height=None):
+    """
+    Convert matplotlib plot to cv2 image
+
+    :param figure: Matplotlib figure (same as fig, _ from matplotlib.pyplot.subplot())
+    :param width: Width of output [px]. Defaults to width of figure.
+    :param height: Height of output [px]. Defaults to height of figure.
+    :return image_cv2: cv2 image
+    """
+
+    # TODO: Check through all this and check docs!
+
+    # Init
+    figure.canvas.draw()
+    if not width or not width:
+        width, height = figure.canvas.get_width_height()
+
+    # Get the RGB buffer from the figure
+    tmp = figure.canvas.tostring_argb()  # Prep for np conversion
+    buf = np.fromstring(tmp, dtype=np.uint8)  # Store in np array
+    buf.shape = (height, width, 4)  # Set shape of array
+    buf = np.roll(buf, 3, axis=2)  # ARGB => RGBA
+
+    # Convert to cv2 image
+    image_cv2 = Image.frombytes("RGBA", (width, height),
+                                buf.tostring())  # Make cv2 image
+    image_cv2.convert("RGBA")
+    image_cv2 = np.array(image_cv2)
+
+    return image_cv2
+
+
+class Cv2ImageText():
+
+    def __init__(self, font=cv2.FONT_HERSHEY_SIMPLEX, pos=(50, 50),
+                 bold=False, background=False, size=1, padding=23, color=None):
+        self.font = font
+        self.size = size
+        self.pos = pos
+        self.bold = bold
+        if bold:
+            self.thickness = self.size * 3
+        else:
+            self.thickness = self.size * 2
+
+        # Color
+        if not color:
+            color_info = sns.color_palette("gist_ncar_r")[1]
+            self.color_matplotlib = color_info
+            self.color_cv2 = [(1 - x) * 255 for x in color_info]
 
 
 class Summary(Counter):
@@ -384,7 +587,7 @@ class ScalingMinMax:
     Tracks min/max values for 16bit to 8bit conversion.
     """
 
-    def __init__(self, mode, scaling, image):
+    def __init__(self, mode, image, scaling=0, ):
         """
         Usage:
 
@@ -397,8 +600,8 @@ class ScalingMinMax:
         :param images: PIMS image
         """
 
-        self.min_current = 65535
-        self.max_current = int()
+        self.min_current = 65535  # Just needs to be >= first value so it gets updated
+        self.max_current = int()  # Just needs to be <= first value so it gets updated
 
         self.min_updates = int()
         self.max_updates = int()
@@ -412,6 +615,8 @@ class ScalingMinMax:
         elif self.mode == "naive":
             min_init = 0
             max_init = 65535  # = 16^2 - 1
+        else:
+            raise AttributeError(self.mode)
 
         self._set_min(min_init)
         self._set_max(max_init)
