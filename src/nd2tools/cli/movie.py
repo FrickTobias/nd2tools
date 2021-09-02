@@ -81,13 +81,14 @@ def main(args):
               conversion_method=args.conversion,
               scale_conversion=args.scale_conversion,
               clip_start=args.clip_start, clip_end=args.clip_end,
-              scalebar=args.scalebar, scalebar_length=args.scalebar_length)
+              scalebar=args.scalebar, scalebar_length=args.scalebar_length,
+              timestamps=args.timestamps)
         logger.info("Finished")
 
 
 def movie(images, output, fps, width, height, frame_pos_list, conversion_method="first",
           scale_conversion=0, clip_start=0, clip_end=0, scalebar=False,
-          scalebar_length=None):
+          scalebar_length=None, timestamps=None):
     """
     Writes images to an mp4 video file
     :param file_path: Path to output video, must end with .mp4
@@ -114,13 +115,13 @@ def movie(images, output, fps, width, height, frame_pos_list, conversion_method=
     first_frame = clip_start
     last_frame = len(images) - clip_end
     timesteps = nd2_get_time(images)
-    for frame_number, image in enumerate(
+    for image_number, image in enumerate(
             tqdm(images[first_frame:last_frame], desc=f"Writing movie file(s)",
                  unit=" images",
                  total=last_frame - first_frame)):
 
         # Split image and writes to appropriate files
-        acquisition_time = timesteps[frame_number]
+        acquisition_time = timesteps[image_number]
         # ims = list()
         for frame_pos in frame_pos_list:
 
@@ -135,12 +136,15 @@ def movie(images, output, fps, width, height, frame_pos_list, conversion_method=
                 image_crop = map_uint16_to_uint8(image_crop,
                                                  lower_bound=scaling_min_max.min_current,
                                                  upper_bound=scaling_min_max.max_current)
+            # Convert to color image
+            image_crop = cv2_gray_to_color(image_crop)
 
             # Add text (changes for different images)
-            image_crop = cv2_gray_to_color(image_crop)
-            image_crop = cv2_add_text_to_image(image_crop, f"t: {acquisition_time}",
-                                               pos=img_txt.pos, color=img_txt.color_cv2,
-                                               background=True)
+            if timestamps:
+                image_crop = cv2_add_text_to_image(image_crop, f"t: {acquisition_time}",
+                                                   pos=img_txt.pos,
+                                                   color=img_txt.color_cv2,
+                                                   background=True)
 
             # Add overlay
             if scalebar:

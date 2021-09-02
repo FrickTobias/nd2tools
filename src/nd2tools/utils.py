@@ -49,11 +49,15 @@ def add_global_args(parser):
     overlay_options = parser.add_argument_group("overlay options")
     overlay_options.add_argument(
         "--scalebar", action="store_true",
-        help="Add scalebar to image"
+        help="Add scalebar to image(s)"
     )
     overlay_options.add_argument(
         "--scalebar-length", type=int, metavar="um",
         help="Length of scalebar."
+    )
+    overlay_options.add_argument(
+        "--timestamps", action="store_true",
+        help="Add timestamp to image(s)"
     )
 
 
