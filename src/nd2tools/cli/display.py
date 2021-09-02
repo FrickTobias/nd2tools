@@ -12,6 +12,8 @@ from nd2tools.utils import map_uint16_to_uint8
 from nd2tools.utils import ImageCoordinates
 from nd2tools.utils import ScalingMinMax
 from nd2tools.utils import add_global_args
+from nd2tools.utils import cv2_add_scalebar
+from nd2tools.utils import cv2_gray_to_color
 
 logger = logging.getLogger(__name__)
 EXCLUSION_LIST = list('x' 'y')
@@ -49,19 +51,20 @@ def main(args):
 
     display(input=args.input, split=args.split, keep=args.keep,
             cut=args.cut, trim=args.trim, time=args.time, z_pos=args.z_pos,
-            FOV=args.FOV)
+            FOV=args.FOV, scalebar=args.scalebar, scalebar_length=args.scalebar_length)
 
 
 def display(input, split=None, keep=None, cut=None, trim=None,
-            time=0, z_pos=0, FOV=0, duration=0):
+            time=0, z_pos=0, FOV=0, duration=0, scalebar=False, scalebar_length=None):
     with ND2Reader(input) as images:
 
         im_xy = ImageCoordinates(x1=0, x2=images.sizes['x'], y1=0, y2=images.sizes['y'])
         im_xy.adjust_frame(split, keep, cut, trim)
         frame_pos_list = im_xy.frames()
+        px_size = images.metadata["pixel_microns"]
         scaling_min_max = ScalingMinMax(mode="continuous", scaling=0, image=images[0])
 
-        image = images.get_frame_2D(t=time, z=z_pos, v=FOV)
+        image = images.get_frame_2D(t=time, z=z_pos, v=FOV, )
         # ims = list()
         for frame_fraction, frame_pos in enumerate(frame_pos_list):
 
@@ -74,6 +77,10 @@ def display(input, split=None, keep=None, cut=None, trim=None,
                 image_crop = map_uint16_to_uint8(image_crop,
                                                  lower_bound=scaling_min_max.min_current,
                                                  upper_bound=scaling_min_max.max_current)
+
+            image_crop = cv2_gray_to_color(image_crop)
+            if scalebar:
+                image_crop = cv2_add_scalebar(image_crop, px_size, length=scalebar_length)
 
             name = f"t-{time}.z-{z_pos}.v-{FOV}"
 

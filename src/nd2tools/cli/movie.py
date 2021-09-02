@@ -19,9 +19,8 @@ from nd2tools.utils import get_screen_dpi
 
 from nd2tools.utils import cv2_gray_to_color
 from nd2tools.utils import cv2_add_text_to_image
-from nd2tools.utils import cv2_build_overlay
 from nd2tools.utils import cv2_remove_white_background
-from nd2tools.utils import plt_to_cv2
+from nd2tools.utils import cv2_add_scalebar
 from nd2tools.utils import nd2_get_time
 from nd2tools.utils import add_clipping_options
 
@@ -53,16 +52,6 @@ def add_arguments(parser):
         help="Frames per second. Default: %(default)s"
     )
 
-    overlay_options = parser.add_argument_group("overlay options")
-    overlay_options.add_argument(
-        "-s", "--scalebar", action="store_true",
-        help="Add scalebar to image. See --magnification to set objective magnification."
-    )
-    overlay_options.add_argument(
-        "--magnification", type=float, default=10,
-        help="Objective magnification used at image acquisition. %(default)s"
-    )
-
     conversion_options = parser.add_argument_group("bit conversion arguments")
     conversion_options.add_argument(
         "--conversion", choices=["first", "continuous", "current", "naive"],
@@ -92,13 +81,13 @@ def main(args):
               conversion_method=args.conversion,
               scale_conversion=args.scale_conversion,
               clip_start=args.clip_start, clip_end=args.clip_end,
-              scalebar=args.scalebar, magnification=args.magnification)
+              scalebar=args.scalebar, scalebar_length=args.scalebar_length)
         logger.info("Finished")
 
 
 def movie(images, output, fps, width, height, frame_pos_list, conversion_method="first",
-          scale_conversion=0, clip_start=0, clip_end=0, scalebar=None,
-          magnification=10):
+          scale_conversion=0, clip_start=0, clip_end=0, scalebar=False,
+          scalebar_length=None):
     """
     Writes images to an mp4 video file
     :param file_path: Path to output video, must end with .mp4
@@ -113,7 +102,6 @@ def movie(images, output, fps, width, height, frame_pos_list, conversion_method=
     :param clip_stop: Stop frame number
     :param magnification: Objective magnification from image acquisition
     """
-    # TODO: Move PROCESSSING out of this function
 
     # Opens one file per frame_pos tracks using open_video_files.dict[frame_pos] = writer
     open_video_files = OpenVideoFiles(output, fps, width, height, frame_pos_list,
@@ -121,9 +109,6 @@ def movie(images, output, fps, width, height, frame_pos_list, conversion_method=
 
     pixel_size = images.metadata["pixel_microns"]
     img_txt = Cv2ImageText()
-    overlay = cv2_build_overlay(width=width, height=height, scalebar=scalebar,
-                                magnification=magnification, pixel_size=pixel_size,
-                                color=img_txt.color_matplotlib)
     scaling_min_max = ScalingMinMax(mode=conversion_method, scaling=scale_conversion,
                                     image=images[0])
     first_frame = clip_start
@@ -157,12 +142,10 @@ def movie(images, output, fps, width, height, frame_pos_list, conversion_method=
                                                pos=img_txt.pos, color=img_txt.color_cv2,
                                                background=True)
 
-            # TODO: Change to cv2 scalebar function (and add to overlay function?)
-
             # Add overlay
-            image_crop = cv2.cvtColor(image_crop, cv2.COLOR_BGR2BGRA)
-            image_crop = cv2.addWeighted(image_crop, 1, overlay, 1, 0)
-            image_crop = cv2.cvtColor(image_crop, cv2.COLOR_BGRA2BGR)
+            if scalebar:
+                image_crop = cv2_add_scalebar(image_crop, pixel_size,
+                                              length=scalebar_length)
 
             # Write image_crop
             open_video_files.dictionary[frame_pos].write(image_crop)

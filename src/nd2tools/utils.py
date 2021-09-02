@@ -17,6 +17,8 @@ else:
     def tqdm(iterable, **kwargs):
         return iterable
 
+IMAGE_SEPARATOR = 10
+
 logger = logging.getLogger(__name__)
 
 
@@ -42,6 +44,16 @@ def add_global_args(parser):
         "--keep", nargs=2, metavar=("X_PIECE", "Y_PIECE"), default=[1, 1],
         help="Specify which piece to keep. Use 0 to keep all and save to "
              "OUTPUT.frame-N.mp4."
+    )
+
+    overlay_options = parser.add_argument_group("overlay options")
+    overlay_options.add_argument(
+        "--scalebar", action="store_true",
+        help="Add scalebar to image"
+    )
+    overlay_options.add_argument(
+        "--scalebar-length", type=int, metavar="um",
+        help="Length of scalebar."
     )
 
 
@@ -185,7 +197,8 @@ def cv2_remove_white_background(cv2_image):
     return cv2_image
 
 
-def cv2_add_text_to_image(image, text, font=cv2.FONT_HERSHEY_SIMPLEX, size=1, pos=(50, 50),
+def cv2_add_text_to_image(image, text, font=cv2.FONT_HERSHEY_SIMPLEX, size=1,
+                          pos=(50, 50),
                           color=(0, 0, 0), background=None, padding=23):
     """
     Add text on cv2 images.
@@ -271,72 +284,105 @@ def nd2_get_time(images, format_string="%H:%M:%S"):
     return t_string_list
 
 
-# TODO: Change scalebar/magnification thing
-def cv2_build_overlay(width, height, scalebar, magnification, pixel_size, color):
-    plt, fig, ax = plt_build_scalebar(width, height, pixel_size, magnification, color)
-    overlay_image = plt_to_cv2(figure=fig, width=width, height=height)
-    overlay_image = cv2_remove_white_background(overlay_image)
-
-    return overlay_image
+def cv2_crop_image(image, frame_pos):
+    x1, x2, y1, y2 = frame_pos
+    image_crop = image[y1:y2, x1:x2]
+    return image_crop
 
 
-# TODO: Make this work correctly
-def plt_build_scalebar(width, height, pixel_size, magnification, color,
-                       scalebar_width=0.01, scalebar_length=0.1, font={"size": "25"}):
+def cv2_add_scalebar(image, px_size, position="top right", color=(0, 0, 0),
+                     length=None):
+    """
+    """
+
     # Get variables
-    dpi = get_screen_dpi()  # Get screen pixel density
-    pixel_size_real = pixel_size / magnification  # Adjust pixel size for magnification
+    img_txt = Cv2ImageText()
+    im_height, im_width, _ = image.shape
+    pos, reverse = cv2_image_pos_generator(position, im_height, im_width)
 
-    # Create subplot. Specifies figsize and dpi in order to keep original resolution
-    fig, ax = plt.subplots(figsize=(width / dpi, height / dpi), dpi=dpi)
+    # Add box to image
+    box_end_pos, real_length = cv2_scalebar_end_pos(pos, px_size=px_size,
+                                                    im_height=im_height,
+                                                    im_width=im_width, length=length,
+                                                    reverse=reverse)
 
-    # TODO: Check if this stretching is correct
-    ax = fig.add_axes([0, 0, 1, 1])  # Set plot area = image_area (removes axes space)
-    _ = [ax.spines[axis].set_visible(False) for axis in
-         ax.spines.keys()]  # ax.axis("off") will override stretching plot area to fill entire fig space
+    # Switches start/stop if position is "_ right"
+    if reverse:
+        pos, box_end_pos = switch_x_in_tuple(pos, box_end_pos)
 
-    # Create scalebar
-    scalebar = ScaleBar(pixel_size_real, "um", frameon=False,
-                        length_fraction=scalebar_length, width_fraction=scalebar_width,
-                        font_properties=font, location="upper right", border_pad=2.5,
-                        color=color)
+    cv2.rectangle(image, pos, box_end_pos, img_txt.color_cv2, -1)
 
-    # Add scalebar to plot
-    ax.add_artist(scalebar)
+    # String under box
+    text = f"{real_length} um"
 
-    return plt, fig, ax
+    # Calculate text position
+    box_x1, box_y1 = pos
+    box_x2, box_y2 = box_end_pos
+    text_dim, _ = cv2.getTextSize(text, img_txt.font, img_txt.size, img_txt.thickness)
+    _, text_h = text_dim
+    txt_pos = (box_x1, box_y2 + text_h + img_txt.size - 1 + IMAGE_SEPARATOR)
+
+    # Add text to image
+    image = cv2_add_text_to_image(image, text, size=img_txt.size, font=img_txt.font,
+                                  color=img_txt.color_cv2, pos=txt_pos)
+    return image
 
 
-def plt_to_cv2(figure, width=None, height=None):
+def switch_x_in_tuple(tuple1, tuple2):
+    x1, y1 = tuple1
+    x2, y2 = tuple2
+    tuple1 = (x2, y1)
+    tuple2 = (x1, y2)
+    return tuple1, tuple2
+
+
+def cv2_image_pos_generator(string_description, height, width, padding=(50, 50)):
+    y_string, x_string = string_description.split()
+    x_padding, y_padding = padding
+
+    if x_string == "left":
+        x_pos = x_padding
+        reverse = False
+    elif x_string == "right":
+        x_pos = width - x_padding
+        reverse = True
+    else:
+        raise ValueError("x_string not 'left' or 'right'")
+
+    if y_string == "top":
+        y_pos = y_padding
+    elif y_string == "bottom":
+        y_pos = height - y_padding
+    else:
+        raise ValueError("y_string not 'top' or 'bottom'")
+
+    return (x_pos, y_pos), reverse
+
+
+def cv2_scalebar_end_pos(pos, px_size, im_height, im_width, height_frac=0.01,
+                         width_frac=0.1, length=None, decimals=2, reverse=False):
     """
-    Convert matplotlib plot to cv2 image
-
-    :param figure: Matplotlib figure (same as fig, _ from matplotlib.pyplot.subplot())
-    :param width: Width of output [px]. Defaults to width of figure.
-    :param height: Height of output [px]. Defaults to height of figure.
-    :return image_cv2: cv2 image
     """
 
-    # TODO: Check through all this and check docs!
+    # calculate len
+    delta_y = int(im_height * height_frac)
 
-    # Init
-    figure.canvas.draw()
-    if not width or not width:
-        width, height = figure.canvas.get_width_height()
+    # calculate width
+    if length:
+        delta_x = round(length / px_size)
+    else:
+        delta_x = round(im_width * width_frac)
+    x_size = round(delta_x * px_size, decimals)
 
-    # Get the RGB buffer from the figure
-    tmp = figure.canvas.tostring_argb()  # Prep for np conversion
-    buf = np.fromstring(tmp, dtype=np.uint8)  # Store in np array
-    buf.shape = (height, width, 4)  # Set shape of array
-    buf = np.roll(buf, 3, axis=2)  # ARGB => RGBA
+    # Compensate for direction (if put on right side)
+    if reverse:
+        delta_x = - delta_x
 
-    # Convert to cv2 image
-    image_cv2 = Image.frombytes("RGBA", (width, height),
-                                buf.tostring())  # Make cv2 image
-    image_cv2.convert("RGBA")
-    image_cv2 = np.array(image_cv2)
+    # Convert to px positions in image
+    x, y = pos
+    end_pos = (x + delta_x, y + delta_y)
 
-    return image_cv2
+    return end_pos, x_size
 
 
 class Cv2ImageText():
