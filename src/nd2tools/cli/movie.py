@@ -14,19 +14,17 @@ from nd2reader import raw_metadata
 
 from nd2tools.utils import map_uint16_to_uint8
 from nd2tools.utils import generate_filename
-from nd2tools.utils import add_global_args
 from nd2tools.utils import get_screen_dpi
 
-from nd2tools.utils import cv2_gray_to_color
-from nd2tools.utils import cv2_add_text_to_image
-from nd2tools.utils import cv2_remove_white_background
-from nd2tools.utils import cv2_add_scalebar
-from nd2tools.utils import nd2_get_time
+from nd2tools.utils import add_global_args
 from nd2tools.utils import add_clipping_options
+
+from nd2tools import cv2_utils
+
+from nd2tools.utils import nd2_get_time
 
 from nd2tools.utils import ImageCoordinates
 from nd2tools.utils import ScalingMinMax
-from nd2tools.utils import Cv2ImageText
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +107,7 @@ def movie(images, output, fps, width, height, frame_pos_list, conversion_method=
                                       is_color=1)
 
     pixel_size = images.metadata["pixel_microns"]
-    img_txt = Cv2ImageText()
+    img_txt = cv2_utils.ImageText()
     scaling_min_max = ScalingMinMax(mode=conversion_method, scaling=scale_conversion,
                                     image=images[0])
     first_frame = clip_start
@@ -126,33 +124,33 @@ def movie(images, output, fps, width, height, frame_pos_list, conversion_method=
         for frame_pos in frame_pos_list:
 
             # Crop image
-            x1, x2, y1, y2 = frame_pos
-            image_crop = image[y1:y2, x1:x2]
+            image_crop = cv2_utils.crop_image(image, frame_pos)
 
             # convert 16bit to 8bit
             if image_crop.dtype == "uint16":
                 if scaling_min_max.mode == "continuous" or scaling_min_max.mode == "current":
                     scaling_min_max.update(image_crop)
-                image_crop = map_uint16_to_uint8(image_crop,
+                image_8bit = map_uint16_to_uint8(image_crop,
                                                  lower_bound=scaling_min_max.min_current,
                                                  upper_bound=scaling_min_max.max_current)
             # Convert to color image
-            image_crop = cv2_gray_to_color(image_crop)
+            image_color = cv2_utils.gray_to_color(image_8bit)
 
             # Add text (changes for different images)
             if timestamps:
-                image_crop = cv2_add_text_to_image(image_crop, f"t: {acquisition_time}",
-                                                   pos=img_txt.pos,
-                                                   color=img_txt.color_cv2,
-                                                   background=True)
+                image_text = cv2_utils.add_text_to_image(image_color,
+                                                         f"t: {acquisition_time}",
+                                                         pos=img_txt.pos,
+                                                         color=img_txt.color_cv2,
+                                                         background=True)
 
             # Add overlay
             if scalebar:
-                image_crop = cv2_add_scalebar(image_crop, pixel_size,
-                                              length=scalebar_length)
+                image_scalebar = cv2_utils.add_scalebar(image_text, pixel_size,
+                                                        length=scalebar_length)
 
             # Write image_crop
-            open_video_files.dictionary[frame_pos].write(image_crop)
+            open_video_files.dictionary[frame_pos].write(image_scalebar)
 
     # Close files
     open_video_files.close()

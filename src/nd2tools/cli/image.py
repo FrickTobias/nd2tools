@@ -19,12 +19,10 @@ from nd2tools.utils import generate_filename
 from nd2tools.utils import ScalingMinMax
 from nd2tools.utils import add_global_args
 from nd2tools.utils import get_screen_dpi
-from nd2tools.utils import cv2_add_text_to_image
-from nd2tools.utils import Cv2ImageText
 from nd2tools.utils import add_clipping_options
-from nd2tools.utils import cv2_gray_to_color
-from nd2tools.utils import cv2_crop_image
-from nd2tools.utils import cv2_add_scalebar
+
+from nd2tools import cv2_utils
+
 from nd2tools.utils import nd2_get_time
 
 logger = logging.getLogger(__name__)
@@ -46,13 +44,14 @@ def add_arguments(parser):
 def main(args):
     image(input=args.input, output=args.output, clip_start=args.clip_start,
           clip_end=args.clip_end, split=args.split, keep=args.keep,
-          cut=args.cut, trim=args.trim, scalebar_length=args.scalebar_length, timestamps=args.timestamps)
+          cut=args.cut, trim=args.trim, scalebar_length=args.scalebar_length,
+          timestamps=args.timestamps, scalebar=args.scalebar)
 
 
 def image(input, output, clip_start=0, clip_end=0, split=None, keep=None, cut=None,
-          trim=None, scalebar_length=None, timestamps=None):
+          trim=None, scalebar=None, scalebar_length=None, timestamps=None):
     with ND2Reader(input) as images:
-        img_txt = Cv2ImageText()
+        img_txt = cv2_utils.ImageText()
         timesteps = nd2_get_time(images)
         im_xy = ImageCoordinates(x1=0, x2=images.sizes['x'], y1=0, y2=images.sizes['y'])
         im_xy.adjust_frame(split, keep, cut, trim)
@@ -71,33 +70,32 @@ def image(input, output, clip_start=0, clip_end=0, split=None, keep=None, cut=No
                                              start=first_frame):
             if scaling_min_max.mode == "continuous" or scaling_min_max.mode == "current":
                 scaling_min_max.update(image)
-            image_8bit = map_uint16_to_uint8(image,
-                                             lower_bound=scaling_min_max.min_current,
-                                             upper_bound=scaling_min_max.max_current)
+            image = map_uint16_to_uint8(image,
+                                        lower_bound=scaling_min_max.min_current,
+                                        upper_bound=scaling_min_max.max_current)
             acquisition_time = timesteps[image_number]
 
             # If splitting image, iterate over frames
             for frame_fraction, frame_pos in enumerate(frame_pos_list):
-                image_8bit_crop = cv2_crop_image(image_8bit, frame_pos)
-                image_8bit_crop_color = cv2_gray_to_color(image_8bit_crop)
-                image_8bit_crop_color_scalebar = cv2_add_scalebar(image_8bit_crop_color,
-                                                                  pixel_size,
-                                                                  color=img_txt.color_cv2,
-                                                                  length=scalebar_length)
+                image_crop = cv2_utils.crop_image(image, frame_pos)
+                image_crop = cv2_utils.gray_to_color(image_crop)
 
+                if scalebar:
+                    image_crop = cv2_utils.add_scalebar(image_crop, pixel_size,
+                                                        color=img_txt.color_cv2,
+                                                        length=scalebar_length)
                 if timestamps:
-                    image_8bit_crop_color_scalebar_time = cv2_add_text_to_image(
-                        image_8bit_crop_color_scalebar, f"t: {acquisition_time}",
-                        pos=img_txt.pos,
-                        color=img_txt.color_cv2,
-                        background=True
-                    )
+                    image_crop = cv2_utils.add_text_to_image(image_crop,
+                                                             f"t: {acquisition_time}",
+                                                             pos=img_txt.pos,
+                                                             color=img_txt.color_cv2,
+                                                             background=True)
 
                 # Generate filename and write to out
                 metadata = build_metadata_string(images, image_number, frame_pos_list,
                                                  frame_fraction)
                 file_path = generate_filename(output, metadata=metadata, format="png")
-                cv2.imwrite(file_path, image_8bit_crop_color_scalebar_time)
+                cv2.imwrite(file_path, image_crop)
 
 
 def build_metadata_string(images, image_number, frame_pos_list, frame_fraction):
