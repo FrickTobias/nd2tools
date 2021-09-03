@@ -3,14 +3,10 @@ Writes png images from nd2 files
 """
 
 import matplotlib.pyplot as plt
-import imageio
 import pathlib
 import logging
-import numpy as np
 import cv2
 from tqdm import tqdm
-
-from matplotlib_scalebar.scalebar import ScaleBar
 from nd2reader import ND2Reader
 
 from nd2tools.utils import ImageCoordinates
