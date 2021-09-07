@@ -24,6 +24,7 @@ MD5SUM_TIMESTAMPS = "092ba7536dad27f4e0146b3ac9edf8fd"
 
 DISPLAY_DURATION_MS = 1
 
+
 def get_md5sum(file):
     md5_hash = hashlib.md5()
     with open(file, "rb") as openin:
@@ -60,13 +61,15 @@ def test_movie(nd2_image=TESTDATA_IMAGE, movie_out=TEST_OUT_MOVIE, md5sum=MD5SUM
     return
 
 
-def test_scalebar(nd2_image=TESTDATA_IMAGE, img_out=TEST_OUT_IMAGE, md5sum=MD5SUM_SCALEBAR):
+def test_scalebar(nd2_image=TESTDATA_IMAGE, img_out=TEST_OUT_IMAGE,
+                  md5sum=MD5SUM_SCALEBAR):
     ndt_image(input=nd2_image, output=img_out, clip_start=5, clip_end=5, scalebar=True)
     assert md5sum == get_md5sum(IMAGE_OUT_NAME)
     return
 
 
-def test_timestamps(nd2_image=TESTDATA_IMAGE, img_out=TEST_OUT_IMAGE, md5sum=MD5SUM_TIMESTAMPS):
+def test_timestamps(nd2_image=TESTDATA_IMAGE, img_out=TEST_OUT_IMAGE,
+                    md5sum=MD5SUM_TIMESTAMPS):
     ndt_image(input=nd2_image, output=img_out, clip_start=5, clip_end=5,
               timestamps=True)
     assert md5sum == get_md5sum(IMAGE_OUT_NAME)
