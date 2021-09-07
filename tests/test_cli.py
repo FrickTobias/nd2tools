@@ -42,7 +42,7 @@ def test_environment():
 
 
 def test_display(nd2_image=TESTDATA_IMAGE, duration=DISPLAY_DURATION_MS):
-    ndt_display(input=nd2_image, duration=duration)
+    ndt_display(input=nd2_image, duration=duration, display=False)
     # ADD test
     return
 
