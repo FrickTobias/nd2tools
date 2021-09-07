@@ -87,7 +87,7 @@ nd2tools movie cells.nd2 cells.mp4
 #### Split images into a 4x4 grid
 
 ```
-nd2tools [display|image|movie] cells.nd2 cells.mp4 --split 4 4 --keep 0 0
+nd2tools [image|movie] cells.nd2 cells.mp4 --split 4 4 --keep 0 0
 ```
 
 #### Add scalebar and timestamps
