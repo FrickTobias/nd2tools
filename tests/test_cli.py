@@ -4,7 +4,6 @@ from pathlib import Path
 import subprocess
 import sys
 import hashlib
-import platform
 from nd2tools.cli.display import display as ndt_display
 from nd2tools.cli.image import image as ndt_image
 from nd2tools.cli.movie import movie as ndt_movie
