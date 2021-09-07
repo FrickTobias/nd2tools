@@ -75,7 +75,8 @@ def display(input, split=None, keep=None, cut=None, trim=None,
             image = map_uint16_to_uint8(image, lower_bound=scaling_min_max.min_current,
                                         upper_bound=scaling_min_max.max_current)
 
-        acquisition_time = timesteps[(time + 1) * (z_pos + 1) * (FOV + 1) - 1]
+        if timestamps:
+            acquisition_time = timesteps[(time + 1) * (z_pos + 1) * (FOV + 1) - 1]
         # ims = list()
         for frame_fraction, frame_pos in enumerate(frame_pos_list):
 

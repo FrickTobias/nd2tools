@@ -116,7 +116,8 @@ def movie(input, output, fps=30, conversion_method="first", split=None, keep=Non
                      total=last_frame - first_frame)):
 
             # Split image and writes to appropriate files
-            acquisition_time = timesteps[image_number]
+            if timestamps:
+                acquisition_time = timesteps[image_number]
             # ims = list()
 
             # convert 16bit to 8bit

@@ -68,7 +68,8 @@ def image(input, output, clip_start=0, clip_end=0, split=None, keep=None, cut=No
             image = map_uint16_to_uint8(image,
                                         lower_bound=scaling_min_max.min_current,
                                         upper_bound=scaling_min_max.max_current)
-            acquisition_time = timesteps[image_number]
+            if timestamps:
+                acquisition_time = timesteps[image_number]
 
             # If splitting image, iterate over frames
             for frame_fraction, frame_pos in enumerate(frame_pos_list):
