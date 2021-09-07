@@ -32,6 +32,8 @@ jobs:
           pip install .
           conda info
           nd2tools --version
+      - name: Install flake8
+        run: pip install flake8
       - name: Run flake8
         run: |
           source $CONDA/etc/profile.d/conda.sh
