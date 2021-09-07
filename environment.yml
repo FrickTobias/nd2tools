@@ -21,8 +21,4 @@ dependencies:
   - tqdm
   - time
   - seaborn
-  - cv2
-  - pip:
-      - matplotlib-scalebar
-      - pyqt5
-      - opencv-python
+  - opencv
