@@ -5,29 +5,21 @@ Writes mp4 videos from nd2 files
 import pathlib
 import logging
 import cv2
-import sys
 import matplotlib
 from tqdm import tqdm
-from PyQt5.QtWidgets import QApplication
 from nd2reader import ND2Reader
-from nd2reader import raw_metadata
 
 from nd2tools.utils import map_uint16_to_uint8
 from nd2tools.utils import generate_filename
-from nd2tools.utils import add_global_args
 from nd2tools.utils import get_screen_dpi
-
-from nd2tools.utils import cv2_gray_to_color
-from nd2tools.utils import cv2_add_text_to_image
-from nd2tools.utils import cv2_build_overlay
-from nd2tools.utils import cv2_remove_white_background
-from nd2tools.utils import plt_to_cv2
-from nd2tools.utils import nd2_get_time
+from nd2tools.utils import add_global_args
 from nd2tools.utils import add_clipping_options
+
+from nd2tools import cv2_utils
+from nd2tools.utils import nd2_get_time
 
 from nd2tools.utils import ImageCoordinates
 from nd2tools.utils import ScalingMinMax
-from nd2tools.utils import Cv2ImageText
 
 logger = logging.getLogger(__name__)
 
@@ -53,16 +45,6 @@ def add_arguments(parser):
         help="Frames per second. Default: %(default)s"
     )
 
-    overlay_options = parser.add_argument_group("overlay options")
-    overlay_options.add_argument(
-        "-s", "--scalebar", action="store_true",
-        help="Add scalebar to image. See --magnification to set objective magnification."
-    )
-    overlay_options.add_argument(
-        "--magnification", type=float, default=10,
-        help="Objective magnification used at image acquisition. %(default)s"
-    )
-
     conversion_options = parser.add_argument_group("bit conversion arguments")
     conversion_options.add_argument(
         "--conversion", choices=["first", "continuous", "current", "naive"],
@@ -80,25 +62,18 @@ def add_arguments(parser):
 
 
 def main(args):
-    with ND2Reader(args.input) as images:
-        # Adjusting output frame coordinates
-        im_xy = ImageCoordinates(x1=0, x2=images.sizes['x'], y1=0, y2=images.sizes['y'])
-        im_xy.adjust_frame(args.split, args.keep, args.cut, args.trim)
-
-        frame_pos_list = im_xy.frames()
-        movie(images=images, output=args.output, fps=args.fps,
-              width=im_xy.frame_width(), height=im_xy.frame_height(),
-              frame_pos_list=frame_pos_list,
-              conversion_method=args.conversion,
-              scale_conversion=args.scale_conversion,
-              clip_start=args.clip_start, clip_end=args.clip_end,
-              scalebar=args.scalebar, magnification=args.magnification)
-        logger.info("Finished")
+    movie(input=args.input, output=args.output, fps=args.fps,
+          conversion_method=args.conversion,
+          scale_conversion=args.scale_conversion,
+          clip_start=args.clip_start, clip_end=args.clip_end,
+          scalebar=args.scalebar, scalebar_length=args.scalebar_length,
+          timestamps=args.timestamps)
+    logger.info("Finished")
 
 
-def movie(images, output, fps, width, height, frame_pos_list, conversion_method="first",
-          scale_conversion=0, clip_start=0, clip_end=0, scalebar=None,
-          magnification=10):
+def movie(input, output, fps=30, conversion_method="first", split=None, keep=None,
+          cut=None, trim=None, scale_conversion=0, clip_start=0, clip_end=0,
+          scalebar=False, scalebar_length=None, timestamps=None):
     """
     Writes images to an mp4 video file
     :param file_path: Path to output video, must end with .mp4
@@ -113,62 +88,71 @@ def movie(images, output, fps, width, height, frame_pos_list, conversion_method=
     :param clip_stop: Stop frame number
     :param magnification: Objective magnification from image acquisition
     """
-    # TODO: Move PROCESSSING out of this function
+    with ND2Reader(input) as images:
+        # Adjusting output frame coordinates
+        im_xy = ImageCoordinates(x1=0, x2=images.sizes['x'], y1=0, y2=images.sizes['y'])
+        im_xy.adjust_frame(split, keep, cut, trim)
+        frame_pos_list = im_xy.frames()
 
-    # Opens one file per frame_pos tracks using open_video_files.dict[frame_pos] = writer
-    open_video_files = OpenVideoFiles(output, fps, width, height, frame_pos_list,
-                                      is_color=1)
+        width = im_xy.frame_width()
+        height = im_xy.frame_height()
+        frame_pos_list = frame_pos_list
 
-    pixel_size = images.metadata["pixel_microns"]
-    img_txt = Cv2ImageText()
-    overlay = cv2_build_overlay(width=width, height=height, scalebar=scalebar,
-                                magnification=magnification, pixel_size=pixel_size,
-                                color=img_txt.color_matplotlib)
-    scaling_min_max = ScalingMinMax(mode=conversion_method, scaling=scale_conversion,
-                                    image=images[0])
-    first_frame = clip_start
-    last_frame = len(images) - clip_end
-    timesteps = nd2_get_time(images)
-    for frame_number, image in enumerate(
-            tqdm(images[first_frame:last_frame], desc=f"Writing movie file(s)",
-                 unit=" images",
-                 total=last_frame - first_frame)):
+        # Opens one file per frame_pos tracks using open_video_files.dict[frame_pos] = writer
+        open_video_files = OpenVideoFiles(output, fps, width, height, frame_pos_list,
+                                          is_color=1)
 
-        # Split image and writes to appropriate files
-        acquisition_time = timesteps[frame_number]
-        # ims = list()
-        for frame_pos in frame_pos_list:
+        pixel_size = images.metadata["pixel_microns"]
+        img_txt = cv2_utils.ImageText()
+        scaling_min_max = ScalingMinMax(mode=conversion_method,
+                                        scaling=scale_conversion,
+                                        image=images[0])
+        first_frame = clip_start
+        last_frame = len(images) - clip_end
+        timesteps = nd2_get_time(images)
+        for image_number, image in enumerate(
+                tqdm(images[first_frame:last_frame], desc=f"Writing movie file(s)",
+                     unit=" images",
+                     total=last_frame - first_frame)):
 
-            # Crop image
-            x1, x2, y1, y2 = frame_pos
-            image_crop = image[y1:y2, x1:x2]
+            # Split image and writes to appropriate files
+            acquisition_time = timesteps[image_number]
+            # ims = list()
 
             # convert 16bit to 8bit
-            if image_crop.dtype == "uint16":
+            if image.dtype == "uint16":
                 if scaling_min_max.mode == "continuous" or scaling_min_max.mode == "current":
                     scaling_min_max.update(image_crop)
-                image_crop = map_uint16_to_uint8(image_crop,
-                                                 lower_bound=scaling_min_max.min_current,
-                                                 upper_bound=scaling_min_max.max_current)
+                image = map_uint16_to_uint8(image,
+                                            lower_bound=scaling_min_max.min_current,
+                                            upper_bound=scaling_min_max.max_current)
 
-            # Add text (changes for different images)
-            image_crop = cv2_gray_to_color(image_crop)
-            image_crop = cv2_add_text_to_image(image_crop, f"t: {acquisition_time}",
-                                               pos=img_txt.pos, color=img_txt.color_cv2,
-                                               background=True)
+            for frame_pos in frame_pos_list:
 
-            # TODO: Change to cv2 scalebar function (and add to overlay function?)
+                # Crop image
+                image_crop = cv2_utils.crop_image(image, frame_pos)
 
-            # Add overlay
-            image_crop = cv2.cvtColor(image_crop, cv2.COLOR_BGR2BGRA)
-            image_crop = cv2.addWeighted(image_crop, 1, overlay, 1, 0)
-            image_crop = cv2.cvtColor(image_crop, cv2.COLOR_BGRA2BGR)
+                # Convert to color image
+                image_crop = cv2_utils.gray_to_color(image_crop)
 
-            # Write image_crop
-            open_video_files.dictionary[frame_pos].write(image_crop)
+                # Add text (changes for different images)
+                if timestamps:
+                    image_crop = cv2_utils.add_text_to_image(image_crop,
+                                                             f"t: {acquisition_time}",
+                                                             pos=img_txt.pos,
+                                                             color=img_txt.color_cv2,
+                                                             background=True)
 
-    # Close files
-    open_video_files.close()
+                # Add overlay
+                if scalebar:
+                    image_crop = cv2_utils.add_scalebar(image_crop, pixel_size,
+                                                        length=scalebar_length)
+
+                # Write image_crop
+                open_video_files.dictionary[frame_pos].write(image_crop)
+
+        # Close files
+        open_video_files.close()
 
 
 class OpenVideoFiles:

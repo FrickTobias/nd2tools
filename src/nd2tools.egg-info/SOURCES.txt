@@ -18,6 +18,7 @@ src/__init__.py
 src/nd2tools/__init__.py
 src/nd2tools/__main__.py
 src/nd2tools/_version.py
+src/nd2tools/cv2_utils.py
 src/nd2tools/utils.py
 src/nd2tools.egg-info/PKG-INFO
 src/nd2tools.egg-info/SOURCES.txt
