@@ -58,7 +58,7 @@ def main(args):
 
 def display(input, split=None, keep=None, cut=None, trim=None,
             time=0, z_pos=0, FOV=0, duration=0, scalebar=False, scalebar_length=None,
-            timestamps=None):
+            timestamps=None, display=True):
     with ND2Reader(input) as images:
 
         img_txt = cv2_utils.ImageText()
@@ -96,7 +96,8 @@ def display(input, split=None, keep=None, cut=None, trim=None,
 
             name = f"t-{time}.z-{z_pos}.v-{FOV}"
 
-            display_image(name, image_crop, duration)
+            if display:
+                display_image(name, image_crop, duration)
 
     logger.info("Finished")
 

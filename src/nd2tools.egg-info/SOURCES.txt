@@ -1,7 +1,7 @@
 LICENSE
 README.md
-environment.linux.lock.yml
-environment.osx.lock.yml
+conda-linux-64.lock
+conda-osx-64.lock
 environment.yml
 install-miniconda.sh
 pyproject.toml
@@ -31,5 +31,6 @@ src/nd2tools/cli/__init__.py
 src/nd2tools/cli/display.py
 src/nd2tools/cli/image.py
 src/nd2tools/cli/movie.py
+test-data/cells.nd2
 tests/test_cli.py
 tests/testdata/img.bmp

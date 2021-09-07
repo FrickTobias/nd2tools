@@ -1,15 +1,10 @@
 import re
-from pathlib import Path
 import sys
 import numpy as np
-from collections import Counter
 import logging
-import cv2
-import seaborn as sns
 import time
-from PIL import Image
-import matplotlib.pyplot as plt
-from matplotlib_scalebar.scalebar import ScaleBar
+from collections import Counter
+from pathlib import Path
 
 if sys.stderr.isatty():
     from tqdm import tqdm
@@ -109,7 +104,8 @@ def guess_paired_path(path: Path):
 
 #
 # Modified from stackoverflow
-# https://stackoverflow.com/questions/25485886/how-to-convert-a-16-bit-to-an-8-bit-image-in-opencv
+# https://stackoverflow.com/questions/25485886/
+# how-to-convert-a-16-bit-to-an-8-bit-image-in-opencv
 def map_uint16_to_uint8(img, lower_bound=None, upper_bound=None):
     '''
     Map a 16-bit image trough a lookup table to convert it to 8-bit.

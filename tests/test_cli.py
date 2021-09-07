@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import sys
 import hashlib
+import platform
 from nd2tools.cli.display import display as ndt_display
 from nd2tools.cli.image import image as ndt_image
 from nd2tools.cli.movie import movie as ndt_movie
@@ -16,11 +17,18 @@ TEST_OUT_IMAGE = TESTDATA / "cells.png"
 TEST_OUT_MOVIE = TESTDATA / "cells.mp4"
 
 MD5SUM_IMAGE = "893a7b110faf618c2341093823a0664e"
-MD5SUM_MOVIE = "ea38aed2d0d05b101b00058a3b64d431"
+MD5SUM_MOVIE_MACOS = "90022ed5f2c7752af56b8a2b6eebe01c"
+MD5SUM_MOVIE_LINUX = "17f4f857b0e5fe1f9d7aceb5a9b2b4fa"
 MD5SUM_SCALEBAR = "cba875450c12b105b2a0b41369b69b0f"
 MD5SUM_TIMESTAMPS = "c3e0c8cc559c9e8edcf5d6f7cb74008b"
 
 DISPLAY_DURATION_MS = 1
+
+os = platform.system()
+if os == "Darwin":
+    md5sum_movie = MD5SUM_MOVIE_MACOS
+elif os == "Linux":
+    md5sum_movie = MD5SUM_MOVIE_MACOS
 
 
 def get_md5sum(file):
@@ -41,8 +49,8 @@ def test_environment():
         subprocess.run(tool.split(" "), stderr=sys.stdout)
 
 
-def test_display(nd2_image=TESTDATA_IMAGE, duration=DISPLAY_DURATION_MS):Upda
-    ndt_display(input=nd2_image, duration=duration)
+def test_display(nd2_image=TESTDATA_IMAGE, duration=DISPLAY_DURATION_MS):
+    ndt_display(input=nd2_image, duration=duration, display=False)
     # ADD test
     return
 
@@ -53,7 +61,7 @@ def test_image(nd2_image=TESTDATA_IMAGE, img_out=TEST_OUT_IMAGE, md5sum=MD5SUM_I
     return
 
 
-def test_movie(nd2_image=TESTDATA_IMAGE, movie_out=TEST_OUT_MOVIE, md5sum=MD5SUM_MOVIE):
+def test_movie(nd2_image=TESTDATA_IMAGE, movie_out=TEST_OUT_MOVIE, md5sum=md5sum_movie):
     ndt_movie(input=nd2_image, output=movie_out)
     assert md5sum == get_md5sum(movie_out)
     return

@@ -11,7 +11,6 @@ from nd2reader import ND2Reader
 
 from nd2tools.utils import map_uint16_to_uint8
 from nd2tools.utils import generate_filename
-from nd2tools.utils import get_screen_dpi
 from nd2tools.utils import add_global_args
 from nd2tools.utils import add_clipping_options
 
@@ -24,7 +23,8 @@ from nd2tools.utils import ScalingMinMax
 logger = logging.getLogger(__name__)
 
 #
-# Non-GUI matplotlib backend for solving AttributeError: 'FigureCanvasMac' object has no attribute 'renderer'
+# Non-GUI matplotlib backend for solving
+# AttributeError: 'FigureCanvasMac' object has no attribute 'renderer'
 # Comment out to use plt.show()
 matplotlib.use('agg')
 
@@ -83,7 +83,7 @@ def movie(input, output, fps=30, conversion_method="first", split=None, keep=Non
     :param height: Height of images
     :param frame_pos_list: List of tuples, [(x1, x2, y1, y2), ...] for image cropping
     :param conversion_method: 16bit to 8bit color conversion method
-    :param scale_conversion: Factor to widen min/max for color conversion (0.2 => *1.2/0.8)
+    :param scale_conversion: Factor to widen min/max for color conversion
     :param clip_start: Start frame number
     :param clip_stop: Stop frame number
     :param magnification: Objective magnification from image acquisition
@@ -98,7 +98,7 @@ def movie(input, output, fps=30, conversion_method="first", split=None, keep=Non
         height = im_xy.frame_height()
         frame_pos_list = frame_pos_list
 
-        # Opens one file per frame_pos tracks using open_video_files.dict[frame_pos] = writer
+        # Opens one file per frame_pos, open_video_files.dict[frame_pos] = writer
         open_video_files = OpenVideoFiles(output, fps, width, height, frame_pos_list,
                                           is_color=1)
 
@@ -111,7 +111,7 @@ def movie(input, output, fps=30, conversion_method="first", split=None, keep=Non
         last_frame = len(images) - clip_end
         timesteps = nd2_get_time(images)
         for image_number, image in enumerate(
-                tqdm(images[first_frame:last_frame], desc=f"Writing movie file(s)",
+                tqdm(images[first_frame:last_frame], desc="Writing movie file(s)",
                      unit=" images",
                      total=last_frame - first_frame)):
 
@@ -121,8 +121,9 @@ def movie(input, output, fps=30, conversion_method="first", split=None, keep=Non
 
             # convert 16bit to 8bit
             if image.dtype == "uint16":
-                if scaling_min_max.mode == "continuous" or scaling_min_max.mode == "current":
-                    scaling_min_max.update(image_crop)
+                if scaling_min_max.mode == "continuous" or \
+                        scaling_min_max.mode == "current":
+                    scaling_min_max.update(image)
                 image = map_uint16_to_uint8(image,
                                             lower_bound=scaling_min_max.min_current,
                                             upper_bound=scaling_min_max.max_current)

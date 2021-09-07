@@ -1,9 +1,6 @@
-import numpy as np
 import logging
 import cv2
 import seaborn as sns
-import matplotlib.pyplot as plt
-from matplotlib_scalebar.scalebar import ScaleBar
 
 IMAGE_SEPARATOR = 10
 

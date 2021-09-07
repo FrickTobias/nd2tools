@@ -25,21 +25,23 @@ jobs:
         with:
           activate-environment: testenv
           auto-update-conda: false
-          environment-file: environment.osx.lock.yml
+          environment-file: conda-osx-64.lock
       - name: Install and check env
         run: |
           conda activate testenv
           pip install .
           conda info
           nd2tools --version
-      - name: Install flake8
-        run: pip install flake8
+      - name: Install github actions requirements
+        run: |
+          pip install flake8
+          pip install pytest
       - name: Run flake8
         run: |
           source $CONDA/etc/profile.d/conda.sh
           conda activate testenv
           flake8 src/ tests/
-          flake8 --select=W292 --filename '*.yaml,*.yml'
+          flake8 --select=W292 --filename '*.yaml'
       - name: Run tests
         run: |
           source $CONDA/etc/profile.d/conda.sh

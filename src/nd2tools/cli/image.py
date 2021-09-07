@@ -2,7 +2,6 @@
 Writes png images from nd2 files
 """
 
-import matplotlib.pyplot as plt
 import pathlib
 import logging
 import cv2
@@ -14,7 +13,6 @@ from nd2tools.utils import map_uint16_to_uint8
 from nd2tools.utils import generate_filename
 from nd2tools.utils import ScalingMinMax
 from nd2tools.utils import add_global_args
-from nd2tools.utils import get_screen_dpi
 from nd2tools.utils import add_clipping_options
 
 from nd2tools import cv2_utils
@@ -60,11 +58,12 @@ def image(input, output, clip_start=0, clip_end=0, split=None, keep=None, cut=No
         assert images[0].dtype == "uint16", f"Not 16bit image ({images[0].dtype})"
 
         for image_number, image in enumerate(tqdm(images[first_frame:last_frame],
-                                                  desc=f"Writing image file(s)",
+                                                  desc="Writing image file(s)",
                                                   unit=" images",
                                                   total=last_frame - first_frame),
                                              start=first_frame):
-            if scaling_min_max.mode == "continuous" or scaling_min_max.mode == "current":
+            if scaling_min_max.mode == "continuous" or \
+                    scaling_min_max.mode == "current":
                 scaling_min_max.update(image)
             image = map_uint16_to_uint8(image,
                                         lower_bound=scaling_min_max.min_current,
