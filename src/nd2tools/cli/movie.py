@@ -71,7 +71,7 @@ def main(args):
     logger.info("Finished")
 
 
-def movie(input, output, fps=1, conversion_method="first", split=None, keep=None,
+def movie(input, output, fps=30, conversion_method="first", split=None, keep=None,
           cut=None, trim=None, scale_conversion=0, clip_start=0, clip_end=0,
           scalebar=False, scalebar_length=None, timestamps=None):
     """
