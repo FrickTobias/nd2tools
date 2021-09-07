@@ -41,7 +41,7 @@ def test_environment():
         subprocess.run(tool.split(" "), stderr=sys.stdout)
 
 
-def test_display(nd2_image=TESTDATA_IMAGE, duration=DISPLAY_DURATION_MS):Upda
+def test_display(nd2_image=TESTDATA_IMAGE, duration=DISPLAY_DURATION_MS):
     ndt_display(input=nd2_image, duration=duration)
     # ADD test
     return
