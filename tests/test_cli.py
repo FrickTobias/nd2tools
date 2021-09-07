@@ -28,7 +28,7 @@ os = platform.system()
 if os == "Darwin":
     md5sum_movie = MD5SUM_MOVIE_MACOS
 elif os == "Linux":
-    md5sum_movie = MD5SUM_MOVIE_LINUX
+    md5sum_movie = MD5SUM_MOVIE_MACOS
 
 
 def get_md5sum(file):
