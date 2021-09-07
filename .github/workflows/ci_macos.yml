@@ -29,9 +29,8 @@ jobs:
       - name: Install and check env
         run: |
           conda activate testenv
-          pip install .[dev]
+          pip install .
           conda info
-          conda list
           nd2tools --version
       - name: Run flake8
         run: |
