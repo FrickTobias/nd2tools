@@ -49,7 +49,7 @@ pip install -e nd2tools
 
 #### 4. Test installation
 
-Install `pytest` and run the testing scripts in `tests/.
+Install `pytest` and run the testing scripts in `tests/`.
 
 ```
 conda install -c anaconda pytest
