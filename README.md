@@ -66,7 +66,7 @@ git -C nd2tools pull
 
 See `nd2tools -h` and `nd2tools [display|image|movie] -h` .
 
-## Examples
+### Examples
 
 #### View image
 
