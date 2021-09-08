@@ -12,8 +12,8 @@ Feel free to post suggestions of what functionality to add by opening an issue.
 
 ## Contents
 
-- [Prerequisites](#prerequisite)
-- [Install](#install)
+- [Requirements](#requirements)
+- [Setup](#setup)
 - [Usage](#usage)
 
 ## Requirements
