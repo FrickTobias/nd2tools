@@ -1,7 +1,6 @@
+<img src="./images/nd2tools-logo.png" alt="nd2tools logo" width="300"/>
+
 [![CI Linux](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_linux.yml/badge.svg)](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_linux.yml) [![CI MacOS](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_macos.yml/badge.svg)](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_macos.yml)
-
-
-![nd2tools-logo](images/nd2tools-logo.png?raw)
 
 A package for automating the most common ND2 exports, like to PNG images or MP4
 timelapse videos. This is an ongoing development process where limitations and adding
