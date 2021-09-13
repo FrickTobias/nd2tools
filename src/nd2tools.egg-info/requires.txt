@@ -1,6 +1,0 @@
-dnaio
-tqdm
-importlib_resources
-
-[dev]
-flake8
