@@ -1,19 +1,14 @@
-name: Linux MacOS
+name: "Linux MacOS"
 
 on:
-  pull_request:
-  schedule:
-    - cron: 0 7 * * 1,3,5
-  push:
-    paths-ignore:
-      - 'figures/**'
-      - 'README.md'
+  - push
+  - pull_request
 
 jobs:
   run:
     name: Setup and test nd2tools
     timeout-minutes: 10
-    runs-on: {matrix.os}
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
