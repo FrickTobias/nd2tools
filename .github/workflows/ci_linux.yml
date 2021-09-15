@@ -22,7 +22,7 @@ jobs:
       - name: Install nd2tools
         run: |
           conda activate testenv
-          pip install .
+          pip install -e .
           nd2tools --version
       - name: Install testing software
         run: |
@@ -38,4 +38,4 @@ jobs:
           source $CONDA/etc/profile.d/conda.sh
           conda activate testenv
           pip install -e .
-          pytest -v tests/
+          pytest -v
