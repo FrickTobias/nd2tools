@@ -1,4 +1,4 @@
-name: "Linux MacOS"
+name: Linux
 
 on:
   - push
@@ -8,10 +8,7 @@ jobs:
   run:
     name: Setup and test nd2tools
     timeout-minutes: 10
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+    runs-on: linux-latest
     defaults:
       run:
         shell: bash -l {0}
