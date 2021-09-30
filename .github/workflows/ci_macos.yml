@@ -1,19 +1,12 @@
-name: CI MacOS
+name: MacOS
 
 on:
-  pull_request:
-  schedule:
-    - cron: 0 7 * * 1,3,5
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - 'doc/**'
-      - 'README.md'
+  - push
+  - pull_request
 
 jobs:
   run:
-    name: Run submodules
+    name: Setup and test nd2tools
     timeout-minutes: 10
     runs-on: macos-latest
     defaults:
@@ -26,25 +19,23 @@ jobs:
           activate-environment: testenv
           auto-update-conda: false
           environment-file: conda-osx-64.lock
-      - name: Install and check env
+      - name: Install nd2tools
         run: |
           conda activate testenv
           pip install .
-          conda info
           nd2tools --version
-      - name: Install github actions requirements
+      - name: Install testing software
         run: |
           pip install flake8
           pip install pytest
-      - name: Run flake8
+      - name: flake8
         run: |
           source $CONDA/etc/profile.d/conda.sh
           conda activate testenv
           flake8 src/ tests/
-          flake8 --select=W292 --filename '*.yaml'
-      - name: Run tests
+      - name: pytest
         run: |
           source $CONDA/etc/profile.d/conda.sh
           conda activate testenv
           pip install -e .
-          pytest -v tests/
+          pytest -v

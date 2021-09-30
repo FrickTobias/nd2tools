@@ -10,7 +10,7 @@ from nd2tools.cli.movie import movie as ndt_movie
 
 # from nd2tools.cli import scalebar
 
-TESTDATA = Path("test-data")
+TESTDATA = Path("tests/test-data")
 TESTDATA_IMAGE = TESTDATA / "cells.nd2"
 TEST_OUT_IMAGE = TESTDATA / "cells.png"
 TEST_OUT_MOVIE = TESTDATA / "cells.mp4"
