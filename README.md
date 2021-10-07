@@ -51,7 +51,7 @@ Write image
 nd2tools image cells.nd2 cells.png
 ```
 
-Make timelapse
+Make movie
 ```
 nd2tools movie cells.nd2 cells.mp4
 ```
