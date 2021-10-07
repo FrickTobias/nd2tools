@@ -53,7 +53,7 @@ Install `pytest` and run the testing scripts in `tests/`.
 
 ```
 conda install -c anaconda pytest
-pytest nd2tools/tests
+pytest
 ```
 
 #### Update by pulling from the git repository
