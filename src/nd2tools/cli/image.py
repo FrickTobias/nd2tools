@@ -33,10 +33,12 @@ def add_arguments(parser):
         "output",
         help="Output file name. Will save in PNG."
     )
-    parser.add_argument("--format", type=str, default="tif",
-                        help="Output format. Will be appended to output name if not "
-                             "included. Default: %(default)s."
+    parser.add_argument(
+        "--format", type=str, default="tif",
+        help="Output format. Will be appended to output name if not included. Default: "
+             "%(default)s."
     )
+
 
 def main(args):
     image(input=args.input, output=args.output, format=args.format,
@@ -44,6 +46,7 @@ def main(args):
           keep=args.keep, cut=args.cut, trim=args.trim,
           scalebar_length=args.scalebar_length, timestamps=args.timestamps,
           scalebar=args.scalebar)
+
 
 def image(input, output, format="tif", clip_start=0, clip_end=0, split=None,
           keep=None, cut=None, trim=None, scalebar=None, scalebar_length=None,
@@ -99,6 +102,7 @@ def image(input, output, format="tif", clip_start=0, clip_end=0, split=None,
                 file_path = generate_filename(output, metadata=metadata,
                                               format=format)
                 cv2.imwrite(file_path, image_crop)
+
 
 def build_metadata_string(images, image_number, frame_pos_list, frame_fraction):
     metadata = list()
