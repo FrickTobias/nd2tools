@@ -1,5 +1,5 @@
 """
-Writes png images from nd2 files
+Writes images from nd2 files
 """
 
 import pathlib
@@ -33,21 +33,29 @@ def add_arguments(parser):
         "output",
         help="Output file name. Will save in PNG."
     )
+    parser.add_argument(
+        "--format", type=str, default="tif",
+        help="Output format. Will be appended to output name if not included. Default: "
+             "%(default)s."
+    )
 
 
 def main(args):
-    image(input=args.input, output=args.output, clip_start=args.clip_start,
-          clip_end=args.clip_end, split=args.split, keep=args.keep,
-          cut=args.cut, trim=args.trim, scalebar_length=args.scalebar_length,
-          timestamps=args.timestamps, scalebar=args.scalebar)
+    image(input=args.input, output=args.output, format=args.format,
+          clip_start=args.clip_start, clip_end=args.clip_end, split=args.split,
+          keep=args.keep, cut=args.cut, trim=args.trim,
+          scalebar_length=args.scalebar_length, timestamps=args.timestamps,
+          scalebar=args.scalebar)
 
 
-def image(input, output, clip_start=0, clip_end=0, split=None, keep=None, cut=None,
-          trim=None, scalebar=None, scalebar_length=None, timestamps=None):
+def image(input, output, format="tif", clip_start=0, clip_end=0, split=None,
+          keep=None, cut=None, trim=None, scalebar=None, scalebar_length=None,
+          timestamps=None):
     with ND2Reader(input) as images:
         img_txt = cv2_utils.ImageText()
         timesteps = nd2_get_time(images)
-        im_xy = ImageCoordinates(x1=0, x2=images.sizes['x'], y1=0, y2=images.sizes['y'])
+        im_xy = ImageCoordinates(x1=0, x2=images.sizes['x'], y1=0,
+                                 y2=images.sizes['y'])
         im_xy.adjust_frame(split, keep, cut, trim)
         frame_pos_list = im_xy.frames()
         scaling_min_max = ScalingMinMax(mode="continuous",
@@ -88,9 +96,11 @@ def image(input, output, clip_start=0, clip_end=0, split=None, keep=None, cut=No
                                                              background=True)
 
                 # Generate filename and write to out
-                metadata = build_metadata_string(images, image_number, frame_pos_list,
+                metadata = build_metadata_string(images, image_number,
+                                                 frame_pos_list,
                                                  frame_fraction)
-                file_path = generate_filename(output, metadata=metadata, format="png")
+                file_path = generate_filename(output, metadata=metadata,
+                                              format=format)
                 cv2.imwrite(file_path, image_crop)
 
 

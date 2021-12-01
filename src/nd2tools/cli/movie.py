@@ -63,11 +63,10 @@ def add_arguments(parser):
 
 def main(args):
     movie(input=args.input, output=args.output, fps=args.fps,
-          conversion_method=args.conversion,
-          scale_conversion=args.scale_conversion,
-          clip_start=args.clip_start, clip_end=args.clip_end,
-          scalebar=args.scalebar, scalebar_length=args.scalebar_length,
-          timestamps=args.timestamps)
+          conversion_method=args.conversion, scale_conversion=args.scale_conversion,
+          clip_start=args.clip_start, clip_end=args.clip_end, scalebar=args.scalebar,
+          scalebar_length=args.scalebar_length, timestamps=args.timestamps,
+          split=args.split, trim=args.trim, keep=args.keep, cut=args.cut)
     logger.info("Finished")
 
 
@@ -117,8 +116,8 @@ def movie(input, output, fps=30, conversion_method="first", split=None, keep=Non
 
             # Split image and writes to appropriate files
             if timestamps:
-                acquisition_time = timesteps[image_number]
-            # ims = list()
+                # TODO: REMOVE *2 from this // fix when z has multiple pos!!!
+                acquisition_time = timesteps[image_number * 2]
 
             # convert 16bit to 8bit
             if image.dtype == "uint16":
