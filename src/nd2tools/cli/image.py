@@ -38,6 +38,14 @@ def add_arguments(parser):
         help="Output format. Will be appended to output name if not included. Default: "
              "%(default)s."
     )
+    # TODO: Move to utils and standardize for all moduels of nd2tools
+    parser.add_argument("-z", "--z-level", type=int, default=0,
+                        help="Z level. Change z level for image output. Default: "
+                             "%(default)s.")
+    parser.add_argument("-t", "--timepoint", type=int,
+                        help="Timepoint. Only extract image number -t.")
+    #parser.add_argument("--iter-axes", type=str, default="t",
+    #                    help="Define which axes to iterate over. Default: %(default)s.")
 
 
 def main(args):
@@ -45,12 +53,12 @@ def main(args):
           clip_start=args.clip_start, clip_end=args.clip_end, split=args.split,
           keep=args.keep, cut=args.cut, trim=args.trim,
           scalebar_length=args.scalebar_length, timestamps=args.timestamps,
-          scalebar=args.scalebar)
+          scalebar=args.scalebar, z_level=args.z_level, timepoint=args.timepoint)
 
 
 def image(input, output, format="tif", clip_start=0, clip_end=0, split=None,
           keep=None, cut=None, trim=None, scalebar=None, scalebar_length=None,
-          timestamps=None):
+          timestamps=None, z_level=0, timepoint=None):
     with ND2Reader(input) as images:
         img_txt = cv2_utils.ImageText()
         timesteps = nd2_get_time(images)
@@ -65,11 +73,20 @@ def image(input, output, format="tif", clip_start=0, clip_end=0, split=None,
         last_frame = len(images) - clip_end
         assert images[0].dtype == "uint16", f"Not 16bit image ({images[0].dtype})"
 
+        # TODO: Implement this properly (iter axis choice etc)
+        images.iter_axes = ""
+        images.default_coords["z"] = z_level
+        images.default_coords["t"] = timepoint
+
         for image_number, image in enumerate(tqdm(images[first_frame:last_frame],
                                                   desc="Writing image file(s)",
                                                   unit=" images",
                                                   total=last_frame - first_frame),
                                              start=first_frame):
+
+            #            import pdb
+            #            pdb.set_trace()
+
             if scaling_min_max.mode == "continuous" or \
                     scaling_min_max.mode == "current":
                 scaling_min_max.update(image)
