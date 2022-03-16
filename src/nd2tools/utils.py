@@ -293,6 +293,11 @@ class ImageCoordinates:
 
         """
 
+        if x1 < x2 or y1 < y2:
+            raise ValueError(
+                f"Cutout coordinates are incorrect. Requirements: x1 < x2 & y1 < y2. "
+                f"Now: (x1, x2, y1, y2) = ({x1},{x2},{y1},{y2})")
+
         self._set_xy(x1, x2, y1, y2)
 
     def trim(self, left, right, bottom, top):
