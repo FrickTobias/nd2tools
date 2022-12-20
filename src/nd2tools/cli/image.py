@@ -39,7 +39,7 @@ def add_arguments(parser):
              "%(default)s."
     )
     # TODO: Move to utils and standardize for all moduels of nd2tools
-    parser.add_argument("-z", "--z-level", type=int, default=0,
+    parser.add_argument("-z", "--z-level", type=int,
                         help="Z level. Change z level for image output. Default: "
                              "%(default)s.")
     parser.add_argument("-t", "--timepoint", type=int,
@@ -75,7 +75,8 @@ def image(input, output, format="tif", clip_start=0, clip_end=0, split=None,
 
         # TODO: Implement this properly (iter axis choice etc)
         images.iter_axes = ""
-        images.default_coords["z"] = z_level
+        if z_level:
+            images.default_coords["z"] = z_level
         images.default_coords["t"] = timepoint
 
         for image_number, image in enumerate(tqdm(images[first_frame:last_frame],
