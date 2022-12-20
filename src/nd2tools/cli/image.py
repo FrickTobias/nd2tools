@@ -44,6 +44,9 @@ def add_arguments(parser):
                              "%(default)s.")
     parser.add_argument("-t", "--timepoint", type=int,
                         help="Timepoint. Only extract image number -t.")
+    parser.add_argument("--iter-axes", type=str,
+                        help="Manually set iter axes. Possible values depend on nd2 "
+                             "image and will be printed when running script.")
     #parser.add_argument("--iter-axes", type=str, default="t",
     #                    help="Define which axes to iterate over. Default: %(default)s.")
 
@@ -53,13 +56,15 @@ def main(args):
           clip_start=args.clip_start, clip_end=args.clip_end, split=args.split,
           keep=args.keep, cut=args.cut, trim=args.trim,
           scalebar_length=args.scalebar_length, timestamps=args.timestamps,
-          scalebar=args.scalebar, z_level=args.z_level, timepoint=args.timepoint)
+          scalebar=args.scalebar, z_level=args.z_level, timepoint=args.timepoint,
+          iter_axes=args.iter_axes)
 
 
 def image(input, output, format="tif", clip_start=0, clip_end=0, split=None,
           keep=None, cut=None, trim=None, scalebar=None, scalebar_length=None,
-          timestamps=None, z_level=0, timepoint=None):
+          timestamps=None, z_level=0, timepoint=None, iter_axes=None):
     with ND2Reader(input) as images:
+        logger.info(f"Image info: {images}")
         img_txt = cv2_utils.ImageText()
         timesteps = nd2_get_time(images)
         im_xy = ImageCoordinates(x1=0, x2=images.sizes['x'], y1=0,
@@ -74,10 +79,16 @@ def image(input, output, format="tif", clip_start=0, clip_end=0, split=None,
         assert images[0].dtype == "uint16", f"Not 16bit image ({images[0].dtype})"
 
         # TODO: Implement this properly (iter axis choice etc)
-        images.iter_axes = "t"
         if z_level:
             images.default_coords["z"] = z_level
         images.default_coords["t"] = timepoint
+
+        possible_iter_axes = "".join(set(images.axes) - set(["x", "y"]))
+        logger.info(f"Possible iter axes for current file: {possible_iter_axes}")
+        if iter_axes:
+            logger.info(f"Manually setting iter axes")
+            images.iter_axes = iter_axes
+        logger.info(f"Iter axes: {images.iter_axes}")
 
         for image_number, image in enumerate(tqdm(images[first_frame:last_frame],
                                                   desc="Writing image file(s)",
