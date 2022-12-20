@@ -74,7 +74,7 @@ def image(input, output, format="tif", clip_start=0, clip_end=0, split=None,
         assert images[0].dtype == "uint16", f"Not 16bit image ({images[0].dtype})"
 
         # TODO: Implement this properly (iter axis choice etc)
-        images.iter_axes = ""
+        images.iter_axes = "t"
         if z_level:
             images.default_coords["z"] = z_level
         images.default_coords["t"] = timepoint
