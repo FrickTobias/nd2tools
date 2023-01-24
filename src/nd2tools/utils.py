@@ -248,10 +248,13 @@ class ImageCoordinates:
     """
 
     def __init__(self, x1, x2, y1, y2):
+
         self.original_x = range(x1, x2 + 1, x2 - x1)
         self.original_y = range(y1, y2 + 1, y2 - y1)
         self.x = self.original_x
         self.y = self.original_y
+
+        logger.debug(f"Initialize img coordinates (x, y):  ({self.x}, {self.y})")
 
     def x1(self):
         return self.x[0]
@@ -362,8 +365,8 @@ class ImageCoordinates:
 
         x1 = self.x1()
         x2 = self.x2()
-        y1 = self.x1()
-        y2 = self.x2()
+        y1 = self.y1()
+        y2 = self.y2()
 
         y_chunk = int(self.frame_height() / y_pieces)
         x_chunk = int(self.frame_width() / x_pieces)
@@ -380,7 +383,9 @@ class ImageCoordinates:
                 x_tuple = x1, self.x[j + 1]
                 y_tuple = y1, self.y[i + 1]
                 frame = x_tuple + y_tuple
+
                 frames.append(frame)
+
         return frames
 
     def adjust_frame(self, split, keep, cut, trim):
@@ -421,6 +426,7 @@ class ImageCoordinates:
             self.x = range(x1, x2 + 1, x_chunk)
         else:
             self.x = range(x1, x2 + 1, x_chunk)[x_keep:x_keep + 2]
+        logger.debug(f"Set x: {self.x}")
 
         # y
         if not y_chunk:
@@ -429,6 +435,7 @@ class ImageCoordinates:
             self.y = range(y1, y2 + 1, y_chunk)
         else:
             self.y = range(y1, y2 + 1, y_chunk)[y_keep:y_keep + 2]
+        logger.debug(f"Set y: {self.y}")
 
 
 class ScalingMinMax:

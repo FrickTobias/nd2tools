@@ -71,6 +71,7 @@ def image(input, output, format="tif", clip_start=0, clip_end=0, split=None,
                                  y2=images.sizes['y'])
         im_xy.adjust_frame(split, keep, cut, trim)
         frame_pos_list = im_xy.frames()
+        logger.debug(f"Frame pos list: {frame_pos_list}")
         scaling_min_max = ScalingMinMax(mode="continuous",
                                         image=images[0])
         pixel_size = images[0].metadata["pixel_microns"]
@@ -110,6 +111,8 @@ def image(input, output, format="tif", clip_start=0, clip_end=0, split=None,
 
             # If splitting image, iterate over frames
             for frame_fraction, frame_pos in enumerate(frame_pos_list):
+                logger.debug(f"Frame fraction: {frame_fraction}")
+                logger.debug(f"Frame pos: {frame_pos}")
                 image_crop = cv2_utils.crop_image(image, frame_pos)
                 image_crop = cv2_utils.gray_to_color(image_crop)
 
@@ -130,6 +133,7 @@ def image(input, output, format="tif", clip_start=0, clip_end=0, split=None,
                                                  frame_fraction)
                 file_path = generate_filename(output, metadata=metadata,
                                               format=format)
+                logger.debug(f"image crop dimensions: {image_crop.shape}")
                 cv2.imwrite(file_path, image_crop)
 
 
