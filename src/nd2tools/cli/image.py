@@ -28,7 +28,7 @@ def add_arguments(parser):
     parser.add_argument(
         "--bit-depths", choices=["8bit", "16bit"], default="16bit", type=str,
         help="What kind of image to write. Use '8bit' to view normally, use '16bit' for "
-             "maximum accuracy. Default: %{default}s"
+             "maximum accuracy. Default: %(default)s"
     )
 
 
