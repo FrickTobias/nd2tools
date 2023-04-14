@@ -2,151 +2,107 @@
 Writes images from nd2 files
 """
 
-import pathlib
+from pathlib import Path
 import logging
 import cv2
+import nd2
+from PIL import Image
+import numpy as np
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+import numpy.typing as npt
 from nd2reader import ND2Reader
-
-from nd2tools.utils import ImageCoordinates
-from nd2tools.utils import map_uint16_to_uint8
-from nd2tools.utils import generate_filename
-from nd2tools.utils import ScalingMinMax
-from nd2tools.utils import add_global_args
-from nd2tools.utils import add_clipping_options
-
-from nd2tools import cv2_utils
-
-from nd2tools.utils import nd2_get_time
 
 logger = logging.getLogger(__name__)
 
 
 def add_arguments(parser):
-    add_global_args(parser)
-    add_clipping_options(parser)
     parser.add_argument(
-        "input", type=pathlib.Path,
+        "--input-file", type=Path,
         help="Nd2 file"
     )
     parser.add_argument(
-        "output",
-        help="Output file name. Will save in PNG."
+        "--output-folder", type=Path,
+        help="Output folder name"
     )
     parser.add_argument(
-        "--format", type=str, default="tif",
-        help="Output format. Will be appended to output name if not included. Default: "
-             "%(default)s."
+        "--bit-depths", choices=["8bit", "16bit"], default="16bit", type=str,
+        help="What kind of image to write. Use '8bit' to view normally, use '16bit' for "
+             "maximum accuracy. Default: %{default}s"
     )
-    # TODO: Move to utils and standardize for all moduels of nd2tools
-    parser.add_argument("-z", "--z-level", type=int,
-                        help="Z level. Change z level for image output. Default: "
-                             "%(default)s.")
-    parser.add_argument("-t", "--timepoint", type=int,
-                        help="Timepoint. Only extract image number -t.")
-    parser.add_argument("--iter-axes", type=str,
-                        help="Manually set iter axes. Possible values depend on nd2 "
-                             "image and will be printed when running script.")
-    #parser.add_argument("--iter-axes", type=str, default="t",
-    #                    help="Define which axes to iterate over. Default: %(default)s.")
 
 
 def main(args):
-    image(input=args.input, output=args.output, format=args.format,
-          clip_start=args.clip_start, clip_end=args.clip_end, split=args.split,
-          keep=args.keep, cut=args.cut, trim=args.trim,
-          scalebar_length=args.scalebar_length, timestamps=args.timestamps,
-          scalebar=args.scalebar, z_level=args.z_level, timepoint=args.timepoint,
-          iter_axes=args.iter_axes)
+    image(
+        input_file=args.input_file,
+        output_folder=args.output_folder,
+        bit_depths=args.bit_depths
+    )
 
 
-def image(input, output, format="tif", clip_start=0, clip_end=0, split=None,
-          keep=None, cut=None, trim=None, scalebar=None, scalebar_length=None,
-          timestamps=None, z_level=0, timepoint=None, iter_axes=None):
-    with ND2Reader(input) as images:
-        logger.info(f"Image info: {images}")
-        img_txt = cv2_utils.ImageText()
-        timesteps = nd2_get_time(images)
-        im_xy = ImageCoordinates(x1=0, x2=images.sizes['x'], y1=0,
-                                 y2=images.sizes['y'])
-        im_xy.adjust_frame(split, keep, cut, trim)
-        frame_pos_list = im_xy.frames()
-        logger.debug(f"Frame pos list: {frame_pos_list}")
-        scaling_min_max = ScalingMinMax(mode="continuous",
-                                        image=images[0])
-        pixel_size = images[0].metadata["pixel_microns"]
-        first_frame = clip_start
-        last_frame = len(images) - clip_end
-        assert images[0].dtype == "uint16", f"Not 16bit image ({images[0].dtype})"
+def image(input_file, output_folder, bit_depths: str = "16bit"):
+    nd2open = nd2.ND2File(input_file)
 
-        # TODO: Implement this properly (iter axis choice etc)
-        if z_level:
-            images.default_coords["z"] = z_level
-        images.default_coords["t"] = timepoint
+    # Extract iter axes names
+    iter_axes = list(nd2open.sizes.keys())
 
-        possible_iter_axes = "".join(set(images.axes) - set(["x", "y"]))
-        logger.info(f"Possible iter axes for current file: {possible_iter_axes}")
-        if iter_axes:
-            logger.info(f"Manually setting iter axes")
-            images.iter_axes = iter_axes
-        logger.info(f"Iter axes: {images.iter_axes}")
+    # Get images as arrays
+    images = nd2open.asarray()
 
-        for image_number, image in enumerate(tqdm(images[first_frame:last_frame],
-                                                  desc="Writing image file(s)",
-                                                  unit=" images",
-                                                  total=last_frame - first_frame),
-                                             start=first_frame):
+    # Make sure every image stack has all possible dimensions
+    ALL_AXES = {"T", "C", "Z", "P", "X", "Y"}
+    for missing_axes in ALL_AXES - set(iter_axes):
+        iter_axes = [missing_axes] + iter_axes
+        images = np.array([images])
 
-            #            import pdb
-            #            pdb.set_trace()
+    # sort array so input order is consistent (but make sure x/y is in the end)
+    sort_idx = np.argsort(iter_axes[:-2])
+    sort_idx = np.append(sort_idx, [4, 5])
+    np.moveaxis(images, range(len(images.shape)), sort_idx)
 
-            if scaling_min_max.mode == "continuous" or \
-                    scaling_min_max.mode == "current":
-                scaling_min_max.update(image)
-            image = map_uint16_to_uint8(image,
-                                        lower_bound=scaling_min_max.min_current,
-                                        upper_bound=scaling_min_max.max_current)
-            if timestamps:
-                acquisition_time = timesteps[image_number]
+    # Calculate min/max values for image conversion
+    if bit_depths == "8bit":
+        images_max = np.max(images)
+        images_min = np.min(images)
 
-            # If splitting image, iterate over frames
-            for frame_fraction, frame_pos in enumerate(frame_pos_list):
-                logger.debug(f"Frame fraction: {frame_fraction}")
-                logger.debug(f"Frame pos: {frame_pos}")
-                image_crop = cv2_utils.crop_image(image, frame_pos)
-                image_crop = cv2_utils.gray_to_color(image_crop)
+    # make output folder
+    output_folder.mkdir(parents=True, exist_ok=True)
 
-                if scalebar:
-                    image_crop = cv2_utils.add_scalebar(image_crop, pixel_size,
-                                                        color=img_txt.color_cv2,
-                                                        length=scalebar_length)
-                if timestamps:
-                    image_crop = cv2_utils.add_text_to_image(image_crop,
-                                                             f"t: {acquisition_time}",
-                                                             pos=img_txt.pos,
-                                                             color=img_txt.color_cv2,
-                                                             background=True)
+    # Iterating over images
+    len_c, len_p, len_t, len_z, len_x, len_y = images.shape
+    for t in tqdm(range(len_t), desc="Extracting images"):
+        for c in range(len_c):
+            for z in range(len_z):
+                for p in range(len_p):
 
-                # Generate filename and write to out
-                metadata = build_metadata_string(images, image_number,
-                                                 frame_pos_list,
-                                                 frame_fraction)
-                file_path = generate_filename(output, metadata=metadata,
-                                              format=format)
-                logger.debug(f"image crop dimensions: {image_crop.shape}")
-                cv2.imwrite(file_path, image_crop)
+                    # get image
+                    img = images[c][p][t][z]
+
+                    # Convert to 8bit
+                    if bit_depths == "8bit":
+                        img = convert_16bit_to_8bit(img, min_val=images_min,
+                                                    max_val=images_max)
+
+                    # Create filename
+                    filename = output_folder.joinpath(
+                        f"p-{p:02d}.z-{z:02d}.c-{c:02d}.t-{t:05d}.tif")
+
+                    # Convert to PIL image and save in tif
+                    img = Image.fromarray(img)
+                    img.save(filename)
+
+    nd2open.close()
+    logger.info("Finished")
 
 
-def build_metadata_string(images, image_number, frame_pos_list, frame_fraction):
-    metadata = list()
-    if len(images) >= 2:
-        metadata.append(f"image-{image_number + 1}")
-    if len(frame_pos_list) >= 2:
-        metadata.append(f"frame-{frame_fraction + 1}")
+def convert_16bit_to_8bit(image16bit: npt.NDArray, min_val: int = None,
+                          max_val: int = None) -> npt.NDArray:
+    if not min_val:
+        min_val = np.max(image16bit)
 
-    if len(metadata) >= 1:
-        metadata = ".".join(metadata)
-    else:
-        metadata = False
+    if not max_val:
+        max_val = np.min(image16bit)
 
-    return metadata
+    image8bit = ((image16bit - min_val) / (max_val - min_val) * 255).astype(np.uint8)
+
+    return image8bit
