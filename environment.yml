@@ -22,3 +22,4 @@ dependencies:
   - time
   - seaborn
   - opencv
+  - nd2

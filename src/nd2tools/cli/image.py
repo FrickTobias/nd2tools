@@ -6,6 +6,7 @@ from pathlib import Path
 import logging
 import cv2
 import nd2
+import itertools
 from PIL import Image
 import numpy as np
 from tqdm import tqdm
@@ -14,6 +15,11 @@ import numpy.typing as npt
 from nd2reader import ND2Reader
 
 logger = logging.getLogger(__name__)
+
+NP_BIT_DTYPES = {
+    "16bit": "uint16",
+    "8bit": "uint8"
+}
 
 
 def add_arguments(parser):
@@ -26,9 +32,9 @@ def add_arguments(parser):
         help="Output folder name"
     )
     parser.add_argument(
-        "--bit-depths", choices=["8bit", "16bit"], default="16bit", type=str,
-        help="What kind of image to write. Use '8bit' to view normally, use '16bit' for "
-             "maximum accuracy. Default: %(default)s"
+        "--bit-depths", choices=["8bit", "16bit"], type=str,
+        help="Convert image to another bit depths. Use '8bit' to have an image you can "
+             "view normally but looses accuracy if input it '16bit'"
     )
 
 
@@ -40,69 +46,69 @@ def main(args):
     )
 
 
-def image(input_file, output_folder, bit_depths: str = "16bit"):
-    nd2open = nd2.ND2File(input_file)
+def image(input_file, output_folder, bit_depths: str = None):
+    # Open image file and create dask array (like np array but lazy loaded for memory optimization)
+    with nd2.ND2File(input_file) as nd2open:
+        images = nd2open.to_dask()
 
-    # Extract iter axes names
-    iter_axes = list(nd2open.sizes.keys())
+    # Compute max/min for conversions so all images have same conversion factor
+    if bit_depths:
+        bit_dtype = NP_BIT_DTYPES[bit_depths]
+        if not images.dtype == bit_dtype:
+            logger.info(f"Will convert image dtype from {images.dtype} to {bit_dtype}")
+            images_max = images.max().compute()
+            images_min = images.min().compute()
 
-    # Get images as arrays
-    images = nd2open.asarray()
-
-    # Make sure every image stack has all possible dimensions
-    ALL_AXES = {"T", "C", "Z", "P", "X", "Y"}
-    for missing_axes in ALL_AXES - set(iter_axes):
-        iter_axes = [missing_axes] + iter_axes
-        images = np.array([images])
-
-    # sort array so input order is consistent (but make sure x/y is in the end)
-    sort_idx = np.argsort(iter_axes[:-2])
-    sort_idx = np.append(sort_idx, [4, 5])
-    np.moveaxis(images, range(len(images.shape)), sort_idx)
-
-    # Calculate min/max values for image conversion
-    if bit_depths == "8bit":
-        images_max = np.max(images)
-        images_min = np.min(images)
-
-    # make output folder
+    # create output folder
+    logger.info(f"Creating output: {output_folder}")
     output_folder.mkdir(parents=True, exist_ok=True)
 
-    # Iterating over images
-    len_c, len_p, len_t, len_z, len_x, len_y = images.shape
-    for t in tqdm(range(len_t), desc="Extracting images"):
-        for c in range(len_c):
-            for z in range(len_z):
-                for p in range(len_p):
+    # Extract all information about channels in nd2 file
+    channel_lengths = list(nd2open.sizes.values())[:-2]
+    channels = list(nd2open.sizes.keys())[:-2]
 
-                    # get image
-                    img = images[c][p][t][z]
+    # Loops over all combination of all channels
+    for channel_indices in tqdm(
+            itertools.product(*[range(length) for length in channel_lengths]),
+            desc="Extracting images", unit="img", total=np.product(channel_lengths)
+    ):
+        # Extract the combined channel and convert to np array
+        image = np.array(images[channel_indices])
 
-                    # Convert to 8bit
-                    if bit_depths == "8bit":
-                        img = convert_16bit_to_8bit(img, min_val=images_min,
-                                                    max_val=images_max)
+        # Construct the output filename
+        if len(channel_indices) == 0:
+            filename = "image.tif"
+        else:
+            filename = ".".join([f"{channels[idx]}-{val + 1}" for idx, val in
+                                 enumerate(channel_indices)]) + ".tif"
 
-                    # Create filename
-                    filename = output_folder.joinpath(
-                        f"p-{p:02d}.z-{z:02d}.c-{c:02d}.t-{t:05d}.tif")
+        # Convert image to another format
+        if bit_depths:
+            if not image.dtype == bit_dtype:
+                image = convert_bit_depths(image, bit_depths, images_min, images_max)
 
-                    # Convert to PIL image and save in tif
-                    img = Image.fromarray(img)
-                    img.save(filename)
-
-    nd2open.close()
-    logger.info("Finished")
+        # Convert to PIL Image and save
+        Image.fromarray(image).save(output_folder.joinpath(filename))
 
 
-def convert_16bit_to_8bit(image16bit: npt.NDArray, min_val: int = None,
-                          max_val: int = None) -> npt.NDArray:
-    if not min_val:
-        min_val = np.max(image16bit)
+def convert_bit_depths(image: npt.NDArray, bit_depths: str, min_val: int = None,
+                       max_val: int = None) -> npt.NDArray:
+    # Set conversion factor values
+    if bit_depths == "8bit":
+        bit_max = 255
+        np_bit_depths = np.uint8
+    elif bit_depths == "16bit":
+        bit_max = 16383
+        np_bit_depths = np.uint16
 
+    # Calculate max/min value for image
     if not max_val:
-        max_val = np.min(image16bit)
+        max_val = np.max(image)
+    if not min_val:
+        min_val = np.min(image)
 
-    image8bit = ((image16bit - min_val) / (max_val - min_val) * 255).astype(np.uint8)
+    # Convert image
+    image_converted = ((image - min_val) / (max_val - min_val) * bit_max).astype(
+        np_bit_depths)
 
-    return image8bit
+    return image_converted
