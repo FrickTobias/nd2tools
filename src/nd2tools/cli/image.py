@@ -2,17 +2,19 @@
 Writes images from nd2 files
 """
 
-from pathlib import Path
-import logging
 import cv2
-import nd2
+import logging
 import itertools
-from PIL import Image
 import numpy as np
+from PIL import Image
 from tqdm import tqdm
-import matplotlib.pyplot as plt
+from pathlib import Path
 import numpy.typing as npt
-from nd2reader import ND2Reader
+import matplotlib.pyplot as plt
+
+import nd2
+
+from nd2tools import utils
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +49,8 @@ def main(args):
 
 
 def image(input_file, output_folder, bit_depths: str = None):
-    # Open image file and create dask array (like np array but lazy loaded for memory optimization)
+    # Open image file and create dask array (like np array but lazy loaded for memory
+    # optimization)
     with nd2.ND2File(input_file) as nd2open:
         images = nd2open.to_dask()
 
@@ -85,30 +88,8 @@ def image(input_file, output_folder, bit_depths: str = None):
         # Convert image to another format
         if bit_depths:
             if not image.dtype == bit_dtype:
-                image = convert_bit_depths(image, bit_depths, images_min, images_max)
+                image = utils.convert_bit_depths(image, bit_depths, images_min,
+                                                 images_max)
 
         # Convert to PIL Image and save
         Image.fromarray(image).save(output_folder.joinpath(filename))
-
-
-def convert_bit_depths(image: npt.NDArray, bit_depths: str, min_val: int = None,
-                       max_val: int = None) -> npt.NDArray:
-    # Set conversion factor values
-    if bit_depths == "8bit":
-        bit_max = 255
-        np_bit_depths = np.uint8
-    elif bit_depths == "16bit":
-        bit_max = 16383
-        np_bit_depths = np.uint16
-
-    # Calculate max/min value for image
-    if not max_val:
-        max_val = np.max(image)
-    if not min_val:
-        min_val = np.min(image)
-
-    # Convert image
-    image_converted = ((image - min_val) / (max_val - min_val) * bit_max).astype(
-        np_bit_depths)
-
-    return image_converted

@@ -2,200 +2,124 @@
 Writes mp4 videos from nd2 files
 """
 
-import pathlib
-import logging
 import cv2
+import logging
+import itertools
 import matplotlib
+import numpy as np
 from tqdm import tqdm
-from nd2reader import ND2Reader
+from pathlib import Path
+import numpy.typing as npt
 
-from nd2tools.utils import map_uint16_to_uint8
-from nd2tools.utils import generate_filename
-from nd2tools.utils import add_global_args
-from nd2tools.utils import add_clipping_options
+import nd2
 
-from nd2tools import cv2_utils
-from nd2tools.utils import nd2_get_time
-
-from nd2tools.utils import ImageCoordinates
-from nd2tools.utils import ScalingMinMax
+from nd2tools import utils
 
 logger = logging.getLogger(__name__)
 
-#
-# Non-GUI matplotlib backend for solving
-# AttributeError: 'FigureCanvasMac' object has no attribute 'renderer'
-# Comment out to use plt.show()
-matplotlib.use('agg')
-
 
 def add_arguments(parser):
-    add_global_args(parser)
-    add_clipping_options(parser)
     parser.add_argument(
-        "input", type=pathlib.Path,
-        help="Input PNG image"
+        "--input-file", type=Path, required=True,
+        help="Name of input ND2 file."
     )
     parser.add_argument(
-        "output",
-        help="Output MP4 file."
+        "--output-folder", type=Path, required=True,
+        help="Name of output folder for mp4 files."
     )
     parser.add_argument(
-        "-f", "--fps", type=int, default=30,
+        "--fps", type=float, default=30,
         help="Frames per second. Default: %(default)s"
-    )
-
-    conversion_options = parser.add_argument_group("bit conversion arguments")
-    conversion_options.add_argument(
-        "--conversion", choices=["first", "continuous", "current", "naive"],
-        default="first",
-        help="Determines how min/max are set for conversion from 16bit to 8bit color "
-             "space. first: first_image. continuous: images_read(image_number). "
-             "current: current_image. naive: Uses min=0 and max=2^16-1. Default: "
-             "%(default)s."
-    )
-    conversion_options.add_argument(
-        "--scale-conversion", type=float, default=0,
-        help="Scale min/max interval for 16bit/8bit conversion. Formula: scaled_max = "
-             "max * (1 + k) and scalad_min = min * (1 - k). Default: %(default)s."
     )
 
 
 def main(args):
-    movie(input=args.input, output=args.output, fps=args.fps,
-          conversion_method=args.conversion, scale_conversion=args.scale_conversion,
-          clip_start=args.clip_start, clip_end=args.clip_end, scalebar=args.scalebar,
-          scalebar_length=args.scalebar_length, timestamps=args.timestamps,
-          split=args.split, trim=args.trim, keep=args.keep, cut=args.cut)
+    movie(input_file=args.input_file, output_folder=args.output_folder,
+          fps=args.fps)
+
+def movie(input_file: Path, output_folder: Path, fps: int = 30):
+    # Open image file and create dask array (like np array but lazy loaded for memory
+    # optimization)
+    with nd2.ND2File(input_file) as nd2open:
+        images = nd2open.to_dask()
+
+    # Compute max/min for conversions so all images have same conversion factor
+    if images.dtype == "uint16":
+        images_max = images.max().compute()
+        images_min = images.min().compute()
+
+    # Get frame dimensions
+    channels_info = nd2open.sizes
+    w = channels_info.pop("X")
+    h = channels_info.pop("Y")
+
+    # Get channel information
+    channel_lengths = list(channels_info.values())
+    channels = list(channels_info.keys())
+
+    # Get channel information divided by time/non-time for filenames
+    if "T" in channels_info:
+        time_idx = np.where(np.array(list(channels_info.keys())) == "T")[0][0]
+        channels_info_no_time = channels_info.copy()
+        channels_info_no_time.pop("T")
+        channel_no_time_lengths = list(channels_info_no_time.values())
+        channels_no_time = list(channels_info_no_time.keys())
+    else:
+        time_idx = [-1]
+        channel_no_time_lengths = channel_lengths
+
+    # Create output dir
+    logger.info(f"Creating outdir: {output_folder}")
+    output_folder.mkdir(parents=True, exist_ok=True)
+
+    # Open mp4 files; one per combination of channels (except time, x and y axis)
+    mp4_writers = {}
+    FOURCC = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+    for channel_indices_no_time in itertools.product(
+            *[range(length) for length in channel_no_time_lengths]):
+
+        # Create filename string
+        if len(channel_indices_no_time) == 0:
+            filename = "movie.mp4"
+        else:
+            filename = ".".join([f"{channels_no_time[idx]}-{val + 1}" for idx, val in
+                                 enumerate(channel_indices_no_time)]) + ".mp4"
+        filename = str(output_folder.joinpath(filename))
+
+        # Setup mp4 writers
+        logger.info(f"Creating file: {filename}")
+        writer = cv2.VideoWriter(filename=filename, fourcc=FOURCC, fps=fps,
+                                 frameSize=(w, h), isColor=False)
+
+        # Save in dictionary
+        mp4_writers[channel_indices_no_time] = writer
+
+    # Loops over all combination of all channels
+    for channel_indices in tqdm(
+            itertools.product(*[range(length) for length in channel_lengths]),
+            desc="Extracting images", unit="img", total=np.product(channel_lengths)
+    ):
+        # Extract image for current channel combination and convert to np array
+        image = np.array(images[channel_indices])
+
+        # Fetch writer ID
+        if time_idx != [-1]:
+            writer_index = list(channel_indices)
+            writer_index.pop(time_idx)
+            writer_index = tuple(writer_index)
+        else:
+            writer_index = channel_indices
+
+        # Make sure image is 8bit
+        if image.dtype == "uint16":
+            image = utils.convert_bit_depths(image, "8bit", images_min, images_max)
+
+        # Write image as frame to mp4
+        mp4_writers[writer_index].write(image)
+
+    # Close mp4 files
+    logger.info("Closing files")
+    for writer in mp4_writers.values():
+        writer.release()
+
     logger.info("Finished")
-
-
-def movie(input, output, fps=30, conversion_method="first", split=None, keep=None,
-          cut=None, trim=None, scale_conversion=0, clip_start=0, clip_end=0,
-          scalebar=False, scalebar_length=None, timestamps=None):
-    """
-    Writes images to an mp4 video file
-    :param file_path: Path to output video, must end with .mp4
-    :param images: List of PIL.Image objects
-    :param fps: Desired frame rate
-    :param width: Width of images
-    :param height: Height of images
-    :param frame_pos_list: List of tuples, [(x1, x2, y1, y2), ...] for image cropping
-    :param conversion_method: 16bit to 8bit color conversion method
-    :param scale_conversion: Factor to widen min/max for color conversion
-    :param clip_start: Start frame number
-    :param clip_stop: Stop frame number
-    :param magnification: Objective magnification from image acquisition
-    """
-    with ND2Reader(input) as images:
-        # Adjusting output frame coordinates
-        im_xy = ImageCoordinates(x1=0, x2=images.sizes['x'], y1=0, y2=images.sizes['y'])
-        im_xy.adjust_frame(split, keep, cut, trim)
-        frame_pos_list = im_xy.frames()
-
-        width = im_xy.frame_width()
-        height = im_xy.frame_height()
-        frame_pos_list = frame_pos_list
-
-        # Opens one file per frame_pos, open_video_files.dict[frame_pos] = writer
-        open_video_files = OpenVideoFiles(output, fps, width, height, frame_pos_list,
-                                          is_color=1)
-
-        pixel_size = images.metadata["pixel_microns"]
-        img_txt = cv2_utils.ImageText()
-        scaling_min_max = ScalingMinMax(mode=conversion_method,
-                                        scaling=scale_conversion,
-                                        image=images[0])
-        first_frame = clip_start
-        last_frame = len(images) - clip_end
-        timesteps = nd2_get_time(images)
-        for image_number, image in enumerate(
-                tqdm(images[first_frame:last_frame], desc="Writing movie file(s)",
-                     unit=" images",
-                     total=last_frame - first_frame)):
-
-            # Split image and writes to appropriate files
-            if timestamps:
-                # TODO: REMOVE *2 from this // fix when z has multiple pos!!!
-                acquisition_time = timesteps[image_number * 2]
-
-            # convert 16bit to 8bit
-            if image.dtype == "uint16":
-                if scaling_min_max.mode == "continuous" or \
-                        scaling_min_max.mode == "current":
-                    scaling_min_max.update(image)
-                image = map_uint16_to_uint8(image,
-                                            lower_bound=scaling_min_max.min_current,
-                                            upper_bound=scaling_min_max.max_current)
-
-            for frame_pos in frame_pos_list:
-
-                # Crop image
-                image_crop = cv2_utils.crop_image(image, frame_pos)
-
-                # Convert to color image
-                image_crop = cv2_utils.gray_to_color(image_crop)
-
-                # Add text (changes for different images)
-                if timestamps:
-                    image_crop = cv2_utils.add_text_to_image(image_crop,
-                                                             f"t: {acquisition_time}",
-                                                             pos=img_txt.pos,
-                                                             color=img_txt.color_cv2,
-                                                             background=True)
-
-                # Add overlay
-                if scalebar:
-                    image_crop = cv2_utils.add_scalebar(image_crop, pixel_size,
-                                                        length=scalebar_length)
-
-                # Write image_crop
-                open_video_files.dictionary[frame_pos].write(image_crop)
-
-        # Close files
-        open_video_files.close()
-
-
-class OpenVideoFiles:
-    """
-    Wrapper object for cv2.VideoWriter for opening a generalized number of files for
-    writing.
-    """
-
-    def __init__(self, file_prefix, fps, width, height, frame_pos_list, is_color=0):
-        """
-        Usage:
-
-            # frame_tuple = (x1, x2, y1, y2)
-            open_video_file.dictionary[frame_tuple].write(outline)
-
-        :param file_prefix: Output name/prefix
-        :param fps: Frames per second
-        :param width: Width of output videos
-        :param height: Height of output videos
-        :param frame_pos_list: List of frame coordinate tuples [(x1, x2, y1, y2), ...]
-        output name generation and writer tracking
-        :param is_color: See cv2.VideoWriter() isColor. 0 Writes in grayscale.
-        """
-
-        # Opens one file per frame position set
-        fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
-        self.dictionary = dict()
-        for count, frame_pos in enumerate(frame_pos_list):
-
-            # If multiple output, add frame-N to file name
-            if len(frame_pos_list) >= 2:
-                metadata = f"frame-{count + 1}"
-            else:
-                metadata = False
-            file_path = generate_filename(file_prefix, metadata=metadata)
-
-            # Open writers and track open files using dictionary
-            logger.info(f"Creating file: {file_path}")
-            writer = cv2.VideoWriter(filename=file_path, fourcc=fourcc, fps=fps,
-                                     frameSize=(width, height), isColor=is_color)
-            self.dictionary[frame_pos] = writer
-
-    def close(self):
-        for writer in self.dictionary.values():
-            writer.release()

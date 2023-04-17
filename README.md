@@ -2,9 +2,7 @@
 
 [![CI Linux](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_linux.yml/badge.svg)](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_linux.yml) [![CI MacOS](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_macos.yml/badge.svg)](https://github.com/FrickTobias/nd2tools/actions/workflows/ci_macos.yml)
 
-A package for automating the most common ND2 exports, like to PNG images or MP4
-timelapse videos. This is an ongoing development process where features are continuously 
-added.
+Extracts images and movies from nd2 files.
 
 ![nd2tools-workflow](figures/nd2tools-workflow.png)
 
@@ -39,31 +37,15 @@ git -C path/to/nd2tools pull
 
 See `nd2tools -h` and `nd2tools [display|image|movie] -h` .
 
-## Minimal examples
-
-View image
-```
-nd2tools display cells.nd2 
-```
+## Examples
 
 Write image
 ```
-nd2tools image cells.nd2 cells.png
+nd2tools image --input-file cells.nd2 --output-folder images
 ```
 
 Make movie
 ```
-nd2tools movie cells.nd2 cells.mp4
+nd2tools movie --input-file cells.nd2 --output-folder movies
 ```
 
-## Option usage examples
-
-Split into a 2x2 grid and write to separate PNGs
-```
-nd2tools image cells.nd2 cells.png --split 2 2 --keep 0 0
-```
-
-Add scalebar and timestamps and write movie
-```
-nd2tools movie cells.nd2 cells.mp4 --scalebar --timestamps
-```
