@@ -1,6 +1,7 @@
 import numpy as np
 import numpy.typing as npt
 
+
 def convert_bit_depths(image: npt.NDArray, bit_depths: str, min_val: int = None,
                        max_val: int = None) -> npt.NDArray:
     # Set conversion factor values

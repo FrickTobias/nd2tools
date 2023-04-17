@@ -5,11 +5,9 @@ Writes mp4 videos from nd2 files
 import cv2
 import logging
 import itertools
-import matplotlib
 import numpy as np
 from tqdm import tqdm
 from pathlib import Path
-import numpy.typing as npt
 
 import nd2
 
@@ -37,6 +35,7 @@ def main(args):
     movie(input_file=args.input_file, output_folder=args.output_folder,
           fps=args.fps)
 
+
 def movie(input_file: Path, output_folder: Path, fps: int = 30):
     # Open image file and create dask array (like np array but lazy loaded for memory
     # optimization)
@@ -55,7 +54,6 @@ def movie(input_file: Path, output_folder: Path, fps: int = 30):
 
     # Get channel information
     channel_lengths = list(channels_info.values())
-    channels = list(channels_info.keys())
 
     # Get channel information divided by time/non-time for filenames
     if "T" in channels_info:

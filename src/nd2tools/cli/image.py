@@ -2,15 +2,12 @@
 Writes images from nd2 files
 """
 
-import cv2
 import logging
 import itertools
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
 from pathlib import Path
-import numpy.typing as npt
-import matplotlib.pyplot as plt
 
 import nd2
 
